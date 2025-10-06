@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 
 #include "Rendering/shader.hpp"
+#include "Rendering/basicrenderable.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -11,16 +12,10 @@ void processInput(GLFWwindow* window);
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-float triangle1_vertices[] = {
-    -0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f,  // top
-     0.0f,  0.0f, 0.0f, 0.0f, 1.0f, 0.0f,  // right
-    -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f   // bottom
-};
-
-float triangle2_vertices[] = {
-     0.5f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f,  // top
-     0.0f,  0.0f, 0.0f, 0.0f, 1.0f, 0.0f,  // left
-     0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f   // bottom
+float triangle_vertices[] = {
+     0.0f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f,  // top
+    -0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,  // bottom left
+     0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f   // bottom right
 };
 
 unsigned int indices[] = {
@@ -46,7 +41,6 @@ int main()
 		return -1;
     }
 	glfwMakeContextCurrent(window);
-	glfwSwapInterval(1); // Enable vsync
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
@@ -56,35 +50,13 @@ int main()
 
 	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
-    unsigned int VBOs[2], VAOs[2], EBO;
-	glGenVertexArrays(2, VAOs);
-	glGenBuffers(2, VBOs);
-    glGenBuffers(1, &EBO);
-
-	// First triangle setup
-	glBindVertexArray(VAOs[0]);
-	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(triangle1_vertices), triangle1_vertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-	// Second triangle setup
-	glBindVertexArray(VAOs[1]);
-	glBindBuffer(GL_ARRAY_BUFFER, VBOs[1]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(triangle2_vertices), triangle2_vertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+    glfwSwapInterval(1); // Enable vsync
 
 	Shader shaderProgram("resources/shaders/simple.vert", "resources/shaders/simple.frag");
+
+	BasicRenderable triangle1(triangle_vertices, sizeof(triangle_vertices), indices, sizeof(indices) / sizeof(indices[0]), &shaderProgram);
+    triangle1.addVertexAttribPointer(0, 3, static_cast<GLsizei>(6 * sizeof(float)), (void*)0);
+    triangle1.addVertexAttribPointer(1, 3, static_cast<GLsizei>(6 * sizeof(float)), (void*)(3 * sizeof(float)));
 
 	// Render loop
     while(!glfwWindowShouldClose(window))
@@ -95,26 +67,18 @@ int main()
         float greenValue = (sin(timeValue) / 2.0f) + 0.5f;
 
 		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.2f, 0.3f, 0.6f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        
-        shaderProgram.use();
-        shaderProgram.setFloat("offset_X", offset_X);
-        shaderProgram.setFloat("offset_Y", offset_Y);
-		//shaderProgram.setFloat4("ourColor", 0.0f, greenValue, 0.0f, 1.0f);
-		glBindVertexArray(VAOs[0]);
-		glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
-		glBindVertexArray(VAOs[1]);
-        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
-		glBindVertexArray(0);
+
+        triangle1.getShader()->setFloat("offset_X", offset_X);
+        triangle1.getShader()->setFloat("offset_Y", offset_Y);
+        triangle1.draw();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
 	}
 
 	// Clean up and exit
-	glDeleteVertexArrays(2, VAOs);
-	glDeleteBuffers(2, VBOs);
     glfwTerminate();
     return 0;
 }

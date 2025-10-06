@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_executable(sTA 
 	src/main.cpp
 	src/Rendering/shader.cpp
+	src/Rendering/basicrenderable.cpp
 )
 
 add_custom_command(TARGET sTA POST_BUILD
@@ -23,7 +24,7 @@ set(GLAD_C_FILE "${PROJ_ROOT}/lib/glad.c")
 # ------------------------------------------------------------
 
 # Include path
- target_include_directories(sTA PRIVATE "${INCLUDE_DIR}" "${PROJ_ROOT}/src/Rendering")
+target_include_directories(sTA PRIVATE "${INCLUDE_DIR}" "${PROJ_ROOT}/src/Rendering")
 
 target_compile_definitions(sTA PRIVATE GLFW_STATIC)
 
