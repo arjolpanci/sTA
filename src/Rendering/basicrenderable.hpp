@@ -16,10 +16,12 @@ public:
 
 	void applyShader(Shader* shader);
 	Shader* getShader() const;
+	void addTexture(int textureUnit, char* imgPath, int width, int height, int nrChannels);
 	void draw() const;
 
 private:
 	unsigned int m_VAO = 0, m_VBO = 0, m_EBO = 0;
+	unsigned int m_texture[2];
 
 	Shader* m_shader = nullptr;
 	std::size_t m_vertexByteSize = 0;

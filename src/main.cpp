@@ -12,14 +12,17 @@ void processInput(GLFWwindow* window);
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-float triangle_vertices[] = {
-     0.0f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f,  // top
-    -0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,  // bottom left
-     0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f   // bottom right
+float vertices[] = {
+    // positions          // colors           // texture coords
+     0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   3.0f, 3.0f,   // top right
+     0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // bottom right
+    -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // bottom left
+    -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f    // top left 
 };
 
 unsigned int indices[] = {
-    0, 1, 2,
+    0, 1, 3,
+    1, 2, 3
 };
 
 static float offset_X, offset_Y = 0.0f;
@@ -54,9 +57,12 @@ int main()
 
 	Shader shaderProgram("resources/shaders/simple.vert", "resources/shaders/simple.frag");
 
-	BasicRenderable triangle1(triangle_vertices, sizeof(triangle_vertices), indices, sizeof(indices) / sizeof(indices[0]), &shaderProgram);
-    triangle1.addVertexAttribPointer(0, 3, static_cast<GLsizei>(6 * sizeof(float)), (void*)0);
-    triangle1.addVertexAttribPointer(1, 3, static_cast<GLsizei>(6 * sizeof(float)), (void*)(3 * sizeof(float)));
+	BasicRenderable square(vertices, sizeof(vertices), indices, sizeof(indices) / sizeof(indices[0]), &shaderProgram);
+    square.addTexture(0, "resources/textures/awesomeface.png", 512, 512, 3);
+    square.addTexture(1, "resources/textures/asphalt.jpg", 960, 640, 3);
+    square.addVertexAttribPointer(0, 3, 8 * sizeof(float), (void*)0);
+    square.addVertexAttribPointer(1, 3, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    square.addVertexAttribPointer(2, 2, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 
 	// Render loop
     while(!glfwWindowShouldClose(window))
@@ -70,9 +76,9 @@ int main()
         glClearColor(0.2f, 0.3f, 0.6f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        triangle1.getShader()->setFloat("offset_X", offset_X);
-        triangle1.getShader()->setFloat("offset_Y", offset_Y);
-        triangle1.draw();
+        square.getShader()->setFloat("offset_X", offset_X);
+        square.getShader()->setFloat("offset_Y", offset_Y);
+        square.draw();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
