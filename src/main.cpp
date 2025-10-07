@@ -5,6 +5,10 @@
 #include "Rendering/shader.hpp"
 #include "Rendering/basicrenderable.hpp"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
@@ -14,7 +18,7 @@ const unsigned int SCR_HEIGHT = 600;
 
 float vertices[] = {
     // positions          // colors           // texture coords
-     0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   3.0f, 3.0f,   // top right
+     0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // top right
      0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // bottom right
     -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // bottom left
     -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f    // top left 
@@ -35,7 +39,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     
-    GLFWwindow* window = glfwCreateWindow(800, 600, "sTA", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(800, 600, "small Theft Auto", NULL, NULL);
 
     if (window == NULL)
     {
@@ -56,6 +60,7 @@ int main()
     glfwSwapInterval(1); // Enable vsync
 
 	Shader shaderProgram("resources/shaders/simple.vert", "resources/shaders/simple.frag");
+    Shader shaderProgram2("resources/shaders/simple.vert", "resources/shaders/simple.frag");
 
 	BasicRenderable square(vertices, sizeof(vertices), indices, sizeof(indices) / sizeof(indices[0]), &shaderProgram);
     square.addTexture(0, "resources/textures/awesomeface.png", 512, 512, 3);
@@ -63,6 +68,13 @@ int main()
     square.addVertexAttribPointer(0, 3, 8 * sizeof(float), (void*)0);
     square.addVertexAttribPointer(1, 3, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     square.addVertexAttribPointer(2, 2, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+
+	BasicRenderable square2(vertices, sizeof(vertices), indices, sizeof(indices) / sizeof(indices[0]), &shaderProgram2);
+    square2.addTexture(0, "resources/textures/awesomeface.png", 512, 512, 3);
+    square2.addTexture(1, "resources/textures/asphalt.jpg", 960, 640, 3);
+    square2.addVertexAttribPointer(0, 3, 8 * sizeof(float), (void*)0);
+    square2.addVertexAttribPointer(1, 3, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    square2.addVertexAttribPointer(2, 2, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 
 	// Render loop
     while(!glfwWindowShouldClose(window))
@@ -75,10 +87,19 @@ int main()
 		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glClearColor(0.2f, 0.3f, 0.6f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-
         square.getShader()->setFloat("offset_X", offset_X);
         square.getShader()->setFloat("offset_Y", offset_Y);
+        glm::mat4 trans = glm::mat4(1.0f);
+        trans = glm::translate(trans, glm::vec3(0.5f, -0.5f, 0.0f));
+        trans = glm::rotate(trans, timeValue, glm::vec3(0.0f, 0.0f, 1.0f));
+        square.getShader()->setMat4("transform", trans);
         square.draw();
+
+        glm::mat4 trans2 = glm::mat4(1.0f);
+        trans2 = glm::translate(trans2, glm::vec3(-0.5f, 0.5f, 0.0f));
+		trans2 = glm::scale(trans2, glm::vec3(abs(sin(timeValue/2)), abs(sin(timeValue/2)), 1.0f));
+        square2.getShader()->setMat4("transform", trans2);
+        square2.draw();
 
         glfwSwapBuffers(window);
         glfwPollEvents();

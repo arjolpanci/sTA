@@ -3,11 +3,15 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 BasicRenderable::BasicRenderable(const float* vertices, std::size_t vertexByteSize,
 	const unsigned int* indices, std::size_t indexCount,
 	Shader* shader)
 	: m_shader(shader), m_vertexByteSize(vertexByteSize), m_indexCount(indexCount)
-{
+{	
 	// Generate VAO, VBO, and EBO
 	glGenVertexArrays(1, &m_VAO);
 	glGenBuffers(1, &m_VBO);

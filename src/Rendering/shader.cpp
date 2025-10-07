@@ -101,6 +101,11 @@ void Shader::setFloat4(const std::string& name, float val1, float val2, float va
     glUniform4f(glGetUniformLocation(m_ID, name.c_str()), val1, val2, val3, val4);
 }
 
+void Shader::setMat4(const std::string& name, glm::mat4 mat) const
+{
+    glUniformMatrix4fv(glGetUniformLocation(m_ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(mat));
+}
+
 void Shader::checkCompileErrors(unsigned int shader, Type type)
 {
     int success;
