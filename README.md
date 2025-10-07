@@ -1,2 +1,2 @@
-# sTA3
-sTA3 (small Theft Auto 3), is a [much] smaller custom version of GTA3 developed in C++
+# sTA
+sTA (small Theft Auto), is a [much] smaller GTA-like game developed in C++ 
