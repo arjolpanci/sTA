@@ -17,6 +17,7 @@ public:
 	void applyShader(Shader* shader);
 	Shader* getShader() const;
 	void addTexture(int textureUnit, char* imgPath, int width, int height, int nrChannels);
+
 	void draw() const;
 
 private:

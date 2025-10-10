@@ -13,8 +13,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
 // settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+const unsigned int SCR_WIDTH = 1920;
+const unsigned int SCR_HEIGHT = 1080;
 
 float vertices[] = {
     // positions          // colors           // texture coords
@@ -22,6 +22,63 @@ float vertices[] = {
      0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // bottom right
     -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // bottom left
     -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f    // top left 
+};
+
+float cubeVertices[] = {
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+     0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+};
+
+glm::vec3 cubePositions[] = {
+    glm::vec3(0.0f,  0.0f,  0.0f),
+    glm::vec3(2.0f,  5.0f, -15.0f),
+    glm::vec3(-1.5f, -2.2f, -2.5f),
+    glm::vec3(-3.8f, -2.0f, -12.3f),
+    glm::vec3(2.4f, -0.4f, -3.5f),
+    glm::vec3(-1.7f,  3.0f, -7.5f),
+    glm::vec3(1.3f, -2.0f, -2.5f),
+    glm::vec3(1.5f,  2.0f, -2.5f),
+    glm::vec3(1.5f,  0.2f, -1.5f),
+    glm::vec3(-1.3f,  1.0f, -1.5f)
 };
 
 unsigned int indices[] = {
@@ -39,7 +96,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     
-    GLFWwindow* window = glfwCreateWindow(800, 600, "small Theft Auto", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "small Theft Auto", NULL, NULL);
 
     if (window == NULL)
     {
@@ -58,23 +115,15 @@ int main()
 	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSwapInterval(1); // Enable vsync
+    glEnable(GL_DEPTH_TEST);
 
 	Shader shaderProgram("resources/shaders/simple.vert", "resources/shaders/simple.frag");
-    Shader shaderProgram2("resources/shaders/simple.vert", "resources/shaders/simple.frag");
 
-	BasicRenderable square(vertices, sizeof(vertices), indices, sizeof(indices) / sizeof(indices[0]), &shaderProgram);
-    square.addTexture(0, "resources/textures/awesomeface.png", 512, 512, 3);
-    square.addTexture(1, "resources/textures/asphalt.jpg", 960, 640, 3);
-    square.addVertexAttribPointer(0, 3, 8 * sizeof(float), (void*)0);
-    square.addVertexAttribPointer(1, 3, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    square.addVertexAttribPointer(2, 2, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-
-	BasicRenderable square2(vertices, sizeof(vertices), indices, sizeof(indices) / sizeof(indices[0]), &shaderProgram2);
-    square2.addTexture(0, "resources/textures/awesomeface.png", 512, 512, 3);
-    square2.addTexture(1, "resources/textures/asphalt.jpg", 960, 640, 3);
-    square2.addVertexAttribPointer(0, 3, 8 * sizeof(float), (void*)0);
-    square2.addVertexAttribPointer(1, 3, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    square2.addVertexAttribPointer(2, 2, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    BasicRenderable cube(cubeVertices, sizeof(cubeVertices), nullptr, 0, &shaderProgram);
+    cube.addTexture(0, "resources/textures/awesomeface.png", 512, 512, 3);
+    cube.addTexture(1, "resources/textures/asphalt.jpg", 960, 640, 3);
+    cube.addVertexAttribPointer(0, 3, 5 * sizeof(float), (void*)0);
+    cube.addVertexAttribPointer(2, 2, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 
 	// Render loop
     while(!glfwWindowShouldClose(window))
@@ -86,23 +135,25 @@ int main()
 
 		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glClearColor(0.2f, 0.3f, 0.6f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        square.getShader()->setFloat("offset_X", offset_X);
-        square.getShader()->setFloat("offset_Y", offset_Y);
-        glm::mat4 trans = glm::mat4(1.0f);
-        trans = glm::translate(trans, glm::vec3(0.5f, -0.5f, 0.0f));
-        trans = glm::rotate(trans, timeValue, glm::vec3(0.0f, 0.0f, 1.0f));
-        square.getShader()->setMat4("transform", trans);
-        square.draw();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glm::mat4 trans2 = glm::mat4(1.0f);
-        trans2 = glm::translate(trans2, glm::vec3(-0.5f, 0.5f, 0.0f));
-		trans2 = glm::scale(trans2, glm::vec3(abs(sin(timeValue/2)), abs(sin(timeValue/2)), 1.0f));
-        square2.getShader()->setMat4("transform", trans2);
-        square2.draw();
+        for (unsigned int i = 0; i < 10; i++) {
+            glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+            glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.5f, -3.0f));
+            glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 
+            model = glm::translate(model, cubePositions[i]);
+            model = glm::rotate(model, timeValue * glm::radians(20.0f * (10 / (i + 1))), glm::vec3(1.0f, 0.3f, 0.5f));
+
+            cube.getShader()->setMat4("model", model);
+            cube.getShader()->setMat4("view", view);
+            cube.getShader()->setMat4("projection", projection);
+            cube.draw();
+        }
+        
         glfwSwapBuffers(window);
         glfwPollEvents();
+
 	}
 
 	// Clean up and exit

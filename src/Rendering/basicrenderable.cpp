@@ -100,7 +100,14 @@ void BasicRenderable::draw() const
 	}
 
 	glBindVertexArray(m_VAO);
-	glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_indexCount), GL_UNSIGNED_INT, 0);
+	if (this->m_indexCount > 0)
+	{
+		glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_indexCount), GL_UNSIGNED_INT, 0);
+	}
+	else {
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+	}
+
 	glBindVertexArray(0);
 }
 
