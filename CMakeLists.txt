@@ -8,6 +8,7 @@ add_executable(sTA
 	src/main.cpp
 	src/Rendering/shader.cpp
 	src/Rendering/basicrenderable.cpp
+	src/Rendering/camera.cpp
 )
 
 add_custom_command(TARGET sTA POST_BUILD
