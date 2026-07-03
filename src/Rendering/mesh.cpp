@@ -1,0 +1,80 @@
+#include "mesh.hpp"
+
+#include <glad/glad.h>
+#include <glm/glm.hpp>
+
+Mesh::Mesh(const std::vector<float>& vertices)
+{
+    m_vertexCount = static_cast<int>(vertices.size() / 8);
+
+    glGenVertexArrays(1, &m_VAO);
+    glGenBuffers(1, &m_VBO);
+
+    glBindVertexArray(m_VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertices.size() * sizeof(float)), vertices.data(), GL_STATIC_DRAW);
+
+    const GLsizei stride = 8 * sizeof(float);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    glBindVertexArray(0);
+}
+
+Mesh::~Mesh()
+{
+    glDeleteVertexArrays(1, &m_VAO);
+    glDeleteBuffers(1, &m_VBO);
+}
+
+void Mesh::draw() const
+{
+    glBindVertexArray(m_VAO);
+    glDrawArrays(GL_TRIANGLES, 0, m_vertexCount);
+    glBindVertexArray(0);
+}
+
+namespace
+{
+    // appends one quad face as two triangles; corners a,b,c,d must be
+    // counter-clockwise when viewed from outside (front face culling relies on it)
+    void appendFace(std::vector<float>& v, const glm::vec3& n,
+                    const glm::vec3& a, const glm::vec3& b,
+                    const glm::vec3& c, const glm::vec3& d,
+                    const glm::vec2 uv[4])
+    {
+        const glm::vec3 pos[6] = { a, b, c, a, c, d };
+        const glm::vec2 uvs[6] = { uv[0], uv[1], uv[2], uv[0], uv[2], uv[3] };
+        for (int i = 0; i < 6; ++i)
+            v.insert(v.end(), { pos[i].x, pos[i].y, pos[i].z, n.x, n.y, n.z, uvs[i].x, uvs[i].y });
+    }
+}
+
+std::vector<float> Mesh::cubeVertices()
+{
+    std::vector<float> v;
+    v.reserve(36 * 8);
+    const glm::vec2 uv[4] = { {0,0}, {1,0}, {1,1}, {0,1} };
+
+    appendFace(v, { 0, 0, 1}, {-0.5f,-0.5f, 0.5f}, { 0.5f,-0.5f, 0.5f}, { 0.5f, 0.5f, 0.5f}, {-0.5f, 0.5f, 0.5f}, uv); // front
+    appendFace(v, { 0, 0,-1}, { 0.5f,-0.5f,-0.5f}, {-0.5f,-0.5f,-0.5f}, {-0.5f, 0.5f,-0.5f}, { 0.5f, 0.5f,-0.5f}, uv); // back
+    appendFace(v, {-1, 0, 0}, {-0.5f,-0.5f,-0.5f}, {-0.5f,-0.5f, 0.5f}, {-0.5f, 0.5f, 0.5f}, {-0.5f, 0.5f,-0.5f}, uv); // left
+    appendFace(v, { 1, 0, 0}, { 0.5f,-0.5f, 0.5f}, { 0.5f,-0.5f,-0.5f}, { 0.5f, 0.5f,-0.5f}, { 0.5f, 0.5f, 0.5f}, uv); // right
+    appendFace(v, { 0, 1, 0}, {-0.5f, 0.5f, 0.5f}, { 0.5f, 0.5f, 0.5f}, { 0.5f, 0.5f,-0.5f}, {-0.5f, 0.5f,-0.5f}, uv); // top
+    appendFace(v, { 0,-1, 0}, {-0.5f,-0.5f,-0.5f}, { 0.5f,-0.5f,-0.5f}, { 0.5f,-0.5f, 0.5f}, {-0.5f,-0.5f, 0.5f}, uv); // bottom
+    return v;
+}
+
+std::vector<float> Mesh::planeVertices(float uvTiling)
+{
+    std::vector<float> v;
+    v.reserve(6 * 8);
+    const float t = uvTiling;
+    const glm::vec2 uv[4] = { {0,0}, {t,0}, {t,t}, {0,t} };
+    appendFace(v, {0, 1, 0}, {-0.5f, 0, 0.5f}, {0.5f, 0, 0.5f}, {0.5f, 0, -0.5f}, {-0.5f, 0, -0.5f}, uv);
+    return v;
+}
