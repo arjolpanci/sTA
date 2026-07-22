@@ -34,7 +34,7 @@ Vehicle::Vehicle(VehicleType type, const glm::vec3& position, float yaw)
     {
         const glm::vec3 body(0.15f, 0.25f, 0.60f);
         m_parts.push_back({ { 0.0f, 0.55f,  0.00f }, { 1.8f, 0.60f, 4.2f }, body });         // chassis
-        m_parts.push_back({ { 0.0f, 1.10f, -0.35f }, { 1.6f, 0.55f, 2.0f }, WINDOW_COLOR }); // cabin
+        m_parts.push_back({ { 0.0f, 1.10f, -0.35f }, { 1.6f, 0.55f, 2.0f }, WINDOW_COLOR, 32.0f }); // cabin
         addWheels(m_parts, 0.8f, 1.35f);
         m_boundsSize = { 1.9f, 1.6f, 4.4f };
         break;
@@ -43,7 +43,7 @@ Vehicle::Vehicle(VehicleType type, const glm::vec3& position, float yaw)
     {
         const glm::vec3 body(0.90f, 0.75f, 0.10f);
         m_parts.push_back({ { 0.0f, 0.55f,  0.00f }, { 1.8f, 0.60f, 4.2f }, body });
-        m_parts.push_back({ { 0.0f, 1.10f, -0.35f }, { 1.6f, 0.55f, 2.0f }, WINDOW_COLOR });
+        m_parts.push_back({ { 0.0f, 1.10f, -0.35f }, { 1.6f, 0.55f, 2.0f }, WINDOW_COLOR, 32.0f });
         m_parts.push_back({ { 0.0f, 1.47f, -0.35f }, { 0.45f, 0.18f, 0.35f }, { 0.9f, 0.9f, 0.85f } }); // roof sign
         addWheels(m_parts, 0.8f, 1.35f);
         m_boundsSize = { 1.9f, 1.7f, 4.4f };
@@ -155,7 +155,18 @@ void Vehicle::render(Renderer& renderer, const Mesh& cubeMesh, bool /*controlled
     for (const VehiclePart& part : m_parts)
     {
         glm::mat4 model = glm::scale(glm::translate(carMatrix, part.offset), part.size);
-        renderer.draw(cubeMesh, model, part.color);
+        renderer.draw(cubeMesh, model, Material{ part.color, nullptr, part.shininess });
+    }
+}
+
+void Vehicle::renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool /*controlled*/) const
+{
+    glm::mat4 carMatrix = glm::translate(glm::mat4(1.0f), m_position);
+    carMatrix = glm::rotate(carMatrix, glm::radians(m_yaw), glm::vec3(0.0f, 1.0f, 0.0f));
+    for (const VehiclePart& part : m_parts)
+    {
+        glm::mat4 model = glm::scale(glm::translate(carMatrix, part.offset), part.size);
+        renderer.drawShadow(cubeMesh, model);
     }
 }
 

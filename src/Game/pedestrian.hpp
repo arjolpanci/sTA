@@ -17,6 +17,7 @@ public:
 
     void update(const ActorContext& ctx, float dt) override;
     void render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const override;
+    void renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const override;
     AABB aabb() const override;
 
     float walkSpeed = 2.0f;

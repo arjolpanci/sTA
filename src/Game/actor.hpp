@@ -36,6 +36,7 @@ public:
 
     virtual void update(const ActorContext& ctx, float dt) = 0;
     virtual void render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const = 0;
+    virtual void renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const = 0;
     virtual AABB aabb() const = 0;
 };
 

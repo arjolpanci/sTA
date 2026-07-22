@@ -23,6 +23,7 @@ struct VehiclePart
     glm::vec3 offset;
     glm::vec3 size;
     glm::vec3 color;
+    float shininess = 0.0f; // > 0 for glossy parts like windows
 };
 
 // A car built out of boxes. Three ways to move: player-controlled (reads
@@ -37,6 +38,7 @@ public:
 
     void update(const ActorContext& ctx, float dt) override;
     void render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const override;
+    void renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const override;
 
     // once set, this vehicle drives itself along the path whenever it isn't
     // player-controlled - it's what makes it "traffic" instead of "parked"

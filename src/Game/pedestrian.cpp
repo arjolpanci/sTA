@@ -43,7 +43,13 @@ void Pedestrian::update(const ActorContext& ctx, float dt)
 
 void Pedestrian::render(Renderer& renderer, const Mesh& cubeMesh, bool /*controlled*/) const
 {
-    renderer.draw(cubeMesh, Mesh::boxMatrix(m_position + glm::vec3(0.0f, m_size.y * 0.5f, 0.0f), m_size, m_yaw), m_color);
+    renderer.draw(cubeMesh, Mesh::boxMatrix(m_position + glm::vec3(0.0f, m_size.y * 0.5f, 0.0f), m_size, m_yaw),
+                  Material{ m_color });
+}
+
+void Pedestrian::renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool /*controlled*/) const
+{
+    renderer.drawShadow(cubeMesh, Mesh::boxMatrix(m_position + glm::vec3(0.0f, m_size.y * 0.5f, 0.0f), m_size, m_yaw));
 }
 
 AABB Pedestrian::aabb() const

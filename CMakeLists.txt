@@ -14,6 +14,7 @@ add_executable(sTA
 	src/Rendering/mesh.cpp
 	src/Rendering/texture.cpp
 	src/Rendering/renderer.cpp
+	src/Rendering/shadow_map.cpp
 	src/Game/world.cpp
 	src/Game/player.cpp
 	src/Game/vehicle.cpp

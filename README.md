@@ -15,7 +15,8 @@ Everything you see is placeholder geometry for now. The player is a cube. The ca
 - Three drivable cars (sedan, taxi, van) with simple arcade physics: throttle, braking, speed-scaled steering
 - Get in and out of any car within reach
 - Pedestrians wandering the block, plus a couple of cars driving themselves around it
-- A debug menu (Dear ImGui) with live sliders for movement, camera, and vehicle physics, plus a collision-box wireframe view
+- Shadow-mapped directional lighting (soft, filtered shadows) and a couple of glossy specular highlights (car windows)
+- A debug menu (Dear ImGui) with live sliders for movement, camera, and vehicle physics, a shadow toggle + live shadow-map preview, plus a collision-box wireframe view
 - A fixed-timestep game loop, so the simulation runs the same regardless of framerate
 
 Not yet: real models, sounds, oriented (rotated) collision boxes, or anything resembling a mission.

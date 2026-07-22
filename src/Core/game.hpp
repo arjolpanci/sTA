@@ -17,6 +17,7 @@ struct GLFWwindow;
 class Renderer;
 class Mesh;
 class Texture;
+class ShadowMap;
 
 // Owns the window and everything in the scene, and runs the main loop:
 // fixed-timestep simulation (so gameplay is framerate-independent) with
@@ -58,6 +59,10 @@ private:
     bool m_showImGuiDemo = false;
     bool m_debugUIReady = false; // guards DebugUI::shutdown() against a partial init() failure
 
+    bool m_shadowsEnabled = true;
+    bool m_showShadowMapPreview = false;
+    glm::vec3 m_sunDirection = glm::normalize(glm::vec3(0.4f, 1.0f, 0.3f)); // normalized, points toward the light
+
     // GL resources live behind pointers: they can only be created in init(),
     // once the OpenGL context exists
     std::unique_ptr<Renderer> m_renderer;
@@ -65,6 +70,7 @@ private:
     std::unique_ptr<Mesh> m_groundMesh;
     std::unique_ptr<Mesh> m_rampMesh;
     std::unique_ptr<Texture> m_groundTexture;
+    std::unique_ptr<ShadowMap> m_shadowMap;
 };
 
 #endif

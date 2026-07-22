@@ -12,6 +12,7 @@ class Player : public Actor
 public:
     void update(const ActorContext& ctx, float dt) override;
     void render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const override;
+    void renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const override;
     AABB aabb() const override;
 
     bool isGrounded() const { return m_vertical.grounded; }

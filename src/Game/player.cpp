@@ -58,7 +58,15 @@ void Player::render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) c
         return; // hidden while riding in a vehicle
 
     renderer.draw(cubeMesh, Mesh::boxMatrix(position + glm::vec3(0.0f, size.y * 0.5f, 0.0f), size, yaw),
-                  glm::vec3(0.85f, 0.30f, 0.20f));
+                  Material{ glm::vec3(0.85f, 0.30f, 0.20f) });
+}
+
+void Player::renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const
+{
+    if (!controlled)
+        return;
+
+    renderer.drawShadow(cubeMesh, Mesh::boxMatrix(position + glm::vec3(0.0f, size.y * 0.5f, 0.0f), size, yaw));
 }
 
 AABB Player::aabb() const

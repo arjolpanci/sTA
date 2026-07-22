@@ -6,13 +6,19 @@ layout (location = 2) in vec2 aUV;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
+uniform mat4 lightSpaceMatrix;
 
 out vec3 vNormal;
 out vec2 vUV;
+out vec3 vFragPos;
+out vec4 vFragPosLightSpace;
 
 void main()
 {
+    vec4 worldPos = model * vec4(aPos, 1.0);
     vNormal = mat3(transpose(inverse(model))) * aNormal;
     vUV = aUV;
-    gl_Position = projection * view * model * vec4(aPos, 1.0);
+    vFragPos = worldPos.xyz;
+    vFragPosLightSpace = lightSpaceMatrix * worldPos;
+    gl_Position = projection * view * worldPos;
 }

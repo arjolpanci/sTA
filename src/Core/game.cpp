@@ -1,6 +1,7 @@
 #include "game.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <iostream>
 #include <utility>
 
@@ -11,6 +12,7 @@
 
 #include "Rendering/mesh.hpp"
 #include "Rendering/renderer.hpp"
+#include "Rendering/shadow_map.hpp"
 #include "Rendering/texture.hpp"
 #include "Game/pedestrian.hpp"
 #include "Game/waypoint_path.hpp"
@@ -35,6 +37,7 @@ Game::~Game()
     m_groundMesh.reset();
     m_rampMesh.reset();
     m_groundTexture.reset();
+    m_shadowMap.reset();
     if (m_window)
         glfwTerminate();
 }
@@ -75,6 +78,7 @@ bool Game::init()
     m_groundMesh = std::make_unique<Mesh>(Mesh::planeVertices(40.0f));
     m_rampMesh = std::make_unique<Mesh>(Mesh::rampVertices());
     m_groundTexture = std::make_unique<Texture>("resources/textures/asphalt.jpg");
+    m_shadowMap = std::make_unique<ShadowMap>();
 
     // player
     auto player = std::make_unique<Player>();
@@ -166,6 +170,13 @@ bool Game::init()
         ImGui::SliderFloat("Max distance", &m_camera.maxDistance, 5.0f, 30.0f);
         ImGui::SliderFloat("Min pitch", &m_camera.minPitch, -30.0f, 0.0f);
         ImGui::SliderFloat("Max pitch", &m_camera.maxPitch, 30.0f, 89.0f);
+    });
+
+    m_debugUI.addPanel("Rendering", [this]() {
+        ImGui::Checkbox("Shadows enabled", &m_shadowsEnabled);
+        ImGui::Checkbox("Show shadow map", &m_showShadowMapPreview);
+        if (m_showShadowMapPreview)
+            ImGui::Image((ImTextureID)(intptr_t)m_shadowMap->depthTexture(), ImVec2(300, 300));
     });
 
     m_debugUI.addPanel("Vehicle", [this]() {
@@ -325,19 +336,47 @@ void Game::render()
     glfwGetFramebufferSize(m_window, &width, &height);
     float aspect = height > 0 ? (float)width / (float)height : 1.0f;
 
+    glm::mat4 lightSpaceMatrix = ShadowMap::lightSpaceMatrix(m_sunDirection, glm::vec3(0.0f), 100.0f);
+
+    // shadow pass: depth only, from the sun's point of view. Runs every
+    // frame regardless of m_shadowsEnabled, which only gates whether the
+    // main pass *samples* the result - otherwise the map would show stale
+    // shadows (or undefined initial contents) from whenever it was last on.
+    // Everything that can cast a shadow is drawn with the same model
+    // matrices as the main pass below; the ground plane is skipped since
+    // nothing is under it to shadow.
+    m_shadowMap->beginCapture();
+    m_renderer->beginShadowPass(lightSpaceMatrix);
+
+    for (const StaticBox& box : m_world.boxes())
+        m_renderer->drawShadow(*m_cubeMesh, Mesh::boxMatrix(box.center, box.size));
+
+    for (const Ramp& ramp : m_world.ramps())
+    {
+        glm::vec3 center(ramp.footprintCenter.x, (ramp.lowHeight + ramp.highHeight) * 0.5f, ramp.footprintCenter.z);
+        glm::vec3 size(ramp.footprintSize.x, ramp.highHeight - ramp.lowHeight, ramp.footprintSize.y);
+        m_renderer->drawShadow(*m_rampMesh, Mesh::boxMatrix(center, size, ramp.alongX ? 90.0f : 0.0f));
+    }
+
+    for (const auto& actor : m_actors)
+        actor->renderShadow(*m_renderer, *m_cubeMesh, actor.get() == m_controlled);
+
+    m_shadowMap->endCapture(width, height);
+
+    // main pass
     glClearColor(0.53f, 0.75f, 0.92f, 1.0f); // sky
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    m_renderer->beginFrame(m_camera, aspect);
+    m_renderer->beginFrame(m_camera, aspect, lightSpaceMatrix, m_sunDirection, *m_shadowMap, m_shadowsEnabled);
 
     // ground
     glm::vec2 ground = m_world.groundSize();
     m_renderer->draw(*m_groundMesh, Mesh::boxMatrix({ 0.0f, 0.0f, 0.0f }, { ground.x, 1.0f, ground.y }),
-                     glm::vec3(1.0f), m_groundTexture.get());
+                     Material{ glm::vec3(1.0f), m_groundTexture.get() });
 
     // buildings and walls
     for (const StaticBox& box : m_world.boxes())
-        m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(box.center, box.size), box.color);
+        m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(box.center, box.size), Material{ box.color });
 
     // ramps: the unit wedge rises along local +Z, flush with the ground at
     // -Z - yaw re-orients that to whichever world axis the ramp climbs
@@ -345,7 +384,7 @@ void Game::render()
     {
         glm::vec3 center(ramp.footprintCenter.x, (ramp.lowHeight + ramp.highHeight) * 0.5f, ramp.footprintCenter.z);
         glm::vec3 size(ramp.footprintSize.x, ramp.highHeight - ramp.lowHeight, ramp.footprintSize.y);
-        m_renderer->draw(*m_rampMesh, Mesh::boxMatrix(center, size, ramp.alongX ? 90.0f : 0.0f), ramp.color);
+        m_renderer->draw(*m_rampMesh, Mesh::boxMatrix(center, size, ramp.alongX ? 90.0f : 0.0f), Material{ ramp.color });
     }
 
     // every actor draws itself; Player no-ops while riding in a vehicle
@@ -360,7 +399,7 @@ void Game::render()
         auto drawAABBWire = [this](const AABB& box, const glm::vec3& color) {
             glm::vec3 center = (box.min + box.max) * 0.5f;
             glm::vec3 size = box.max - box.min;
-            m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(center, size), color);
+            m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(center, size), Material{ color });
         };
 
         glDisable(GL_CULL_FACE);
