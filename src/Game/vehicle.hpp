@@ -1,10 +1,12 @@
 #ifndef VEHICLE_H
 #define VEHICLE_H
 
+#include <optional>
 #include <vector>
 #include <glm/glm.hpp>
 
 #include "actor.hpp"
+#include "waypoint_path.hpp"
 
 enum class VehicleType
 {
@@ -22,10 +24,11 @@ struct VehiclePart
     glm::vec3 color;
 };
 
-// A car built out of boxes. Parked until controlled: Game hands the driven
-// vehicle ctx.controlled = true exactly like it does for Player, so a
-// vehicle simply does nothing while parked - no separate "is this vehicle
-// occupied" flag needed.
+// A car built out of boxes. Three ways to move: player-controlled (reads
+// real input, exactly like before), traffic AI (self-steers toward a
+// WaypointPath - see setPatrol()), or parked (neither, does nothing). Which
+// one applies is decided fresh each frame: ctx.controlled wins if true,
+// otherwise a patrol path if one is set, otherwise parked.
 class Vehicle : public Actor
 {
 public:
@@ -33,6 +36,10 @@ public:
 
     void update(const ActorContext& ctx, float dt) override;
     void render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const override;
+
+    // once set, this vehicle drives itself along the path whenever it isn't
+    // player-controlled - it's what makes it "traffic" instead of "parked"
+    void setPatrol(WaypointPath path) { m_path = std::move(path); }
 
     const std::vector<VehiclePart>& parts() const { return m_parts; }
     glm::vec3 position() const { return m_position; }
@@ -60,6 +67,7 @@ private:
     float m_speed = 0.0f; // signed: positive = forward, negative = reverse
     glm::vec3 m_boundsSize{ 0.0f }; // overall collision box (unrotated)
     std::vector<VehiclePart> m_parts;
+    std::optional<WaypointPath> m_path; // set => this vehicle is traffic, not a parked decoration
 };
 
 #endif

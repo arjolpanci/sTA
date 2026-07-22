@@ -11,6 +11,8 @@
 #include "Rendering/mesh.hpp"
 #include "Rendering/renderer.hpp"
 #include "Rendering/texture.hpp"
+#include "Game/pedestrian.hpp"
+#include "Game/waypoint_path.hpp"
 
 namespace
 {
@@ -88,6 +90,43 @@ bool Game::init()
     addVehicle(VehicleType::Sedan, glm::vec3(-12.0f, 0.0f, 12.0f), 90.0f);
     addVehicle(VehicleType::Van, glm::vec3(18.0f, 0.0f, -14.0f), 180.0f);
 
+    // traffic: cars that patrol a loop entirely on their own (see
+    // Vehicle::update - same physics as player-driven, just AI steering
+    // instead of real input). Loop hugs the inside of the border walls,
+    // clear of every building in World.
+    auto addTraffic = [this](VehicleType type, const glm::vec3& start, float yaw,
+                              std::vector<glm::vec3> waypoints, float cruiseSpeed) {
+        auto vehicle = std::make_unique<Vehicle>(type, start, yaw);
+        vehicle->maxSpeed = cruiseSpeed;
+        vehicle->setPatrol(WaypointPath(std::move(waypoints)));
+        m_vehicles.push_back(vehicle.get());
+        m_actors.push_back(std::move(vehicle));
+    };
+    std::vector<glm::vec3> perimeterLoop = {
+        { -70.0f, 0.0f, -47.0f }, { 70.0f, 0.0f, -47.0f }, { 70.0f, 0.0f, 47.0f }, { -70.0f, 0.0f, 47.0f }
+    };
+    std::vector<glm::vec3> perimeterLoopReversed(perimeterLoop.rbegin(), perimeterLoop.rend());
+    addTraffic(VehicleType::Sedan, glm::vec3(-70.0f, 0.0f, -47.0f), 90.0f, perimeterLoop, 8.0f);
+    addTraffic(VehicleType::Van, glm::vec3(-70.0f, 0.0f, 47.0f), 90.0f, perimeterLoopReversed, 7.0f);
+
+    // pedestrians: simple wandering NPCs, patrolling short hand-placed routes
+    // clear of every building
+    auto addPedestrian = [this](const glm::vec3& start, std::vector<glm::vec3> waypoints,
+                                 const glm::vec3& color, float speed) {
+        auto ped = std::make_unique<Pedestrian>(start, WaypointPath(std::move(waypoints)), color);
+        ped->walkSpeed = speed;
+        m_actors.push_back(std::move(ped));
+    };
+    addPedestrian(glm::vec3(-10.0f, 0.0f, -10.0f),
+                  { { -10.0f, 0.0f, -10.0f }, { 10.0f, 0.0f, -10.0f }, { 10.0f, 0.0f, 10.0f }, { -10.0f, 0.0f, 10.0f } },
+                  glm::vec3(0.75f, 0.60f, 0.50f), 2.0f);
+    addPedestrian(glm::vec3(4.0f, 0.0f, 2.0f),
+                  { { 4.0f, 0.0f, 2.0f }, { 14.0f, 0.0f, 10.0f } },
+                  glm::vec3(0.50f, 0.65f, 0.55f), 1.6f);
+    addPedestrian(glm::vec3(20.0f, 0.0f, -10.0f),
+                  { { 20.0f, 0.0f, -10.0f }, { 20.0f, 0.0f, 10.0f } },
+                  glm::vec3(0.60f, 0.50f, 0.70f), 1.8f);
+
     // debug UI: panels are registered here, once, by whatever owns the data
     // they show. Adding a new panel elsewhere never touches this file.
     m_debugUI.init(m_window);
@@ -99,6 +138,7 @@ bool Game::init()
             ImGui::Text("Driving (speed %.1f)", driving->speed());
         else
             ImGui::Text("Player pos: %.1f, %.1f, %.1f", m_player->position.x, m_player->position.y, m_player->position.z);
+        ImGui::Text("Actors: %zu", m_actors.size());
         ImGui::Separator();
         ImGui::Checkbox("Show collision boxes", &m_showColliders);
         ImGui::Checkbox("Show ImGui demo window", &m_showImGuiDemo);

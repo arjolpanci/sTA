@@ -13,6 +13,7 @@ Everything you see is placeholder geometry for now. The player is a cube. The ca
 - AABB collision that lets you slide along walls instead of walking through them
 - Three drivable cars (sedan, taxi, van) with simple arcade physics: throttle, braking, speed-scaled steering
 - Get in and out of any car within reach
+- Pedestrians wandering the block, plus a couple of cars driving themselves around it
 - A debug menu (Dear ImGui) with live sliders for movement, camera, and vehicle physics, plus a collision-box wireframe view
 - A fixed-timestep game loop, so the simulation runs the same regardless of framerate
 

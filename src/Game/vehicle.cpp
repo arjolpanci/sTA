@@ -69,12 +69,39 @@ glm::vec3 Vehicle::forward() const
 
 void Vehicle::update(const ActorContext& ctx, float dt)
 {
-    if (!ctx.controlled)
-        return; // parked, or another actor has control
-
     float throttle = 0.0f;
-    if (ctx.input.keyDown(GLFW_KEY_W)) throttle = 1.0f;
-    else if (ctx.input.keyDown(GLFW_KEY_S)) throttle = -1.0f;
+    float steer = 0.0f;
+
+    if (ctx.controlled)
+    {
+        if (ctx.input.keyDown(GLFW_KEY_W)) throttle = 1.0f;
+        else if (ctx.input.keyDown(GLFW_KEY_S)) throttle = -1.0f;
+        if (ctx.input.keyDown(GLFW_KEY_A)) steer -= 1.0f;
+        if (ctx.input.keyDown(GLFW_KEY_D)) steer += 1.0f;
+    }
+    else if (m_path)
+    {
+        // steer toward the current waypoint: the sign/magnitude of the cross
+        // product between "forward" and "direction to target" is a simple
+        // proportional heading controller - positive means the target is to
+        // the side that increasing yaw turns toward (see Vehicle::forward())
+        glm::vec3 toTarget = m_path->current() - m_position;
+        toTarget.y = 0.0f;
+        float dist = glm::length(toTarget);
+        if (dist > 0.01f)
+        {
+            toTarget /= dist;
+            glm::vec3 fwd = forward();
+            float cross = fwd.z * toTarget.x - fwd.x * toTarget.z;
+            steer = std::clamp(cross * 4.0f, -1.0f, 1.0f);
+        }
+        throttle = 1.0f - 0.6f * std::abs(steer); // ease off the gas mid-turn
+        m_path->advanceIfReached(m_position, 3.0f);
+    }
+    else
+    {
+        return; // parked, no driver
+    }
 
     if (throttle > 0.0f)
         m_speed += acceleration * dt;
@@ -92,10 +119,6 @@ void Vehicle::update(const ActorContext& ctx, float dt)
     // in reverse so it steers the way a real car does when backing up
     if (std::abs(m_speed) > 0.01f)
     {
-        float steer = 0.0f;
-        if (ctx.input.keyDown(GLFW_KEY_A)) steer -= 1.0f;
-        if (ctx.input.keyDown(GLFW_KEY_D)) steer += 1.0f;
-
         float speedFactor = std::clamp(std::abs(m_speed) / maxSpeed, 0.2f, 1.0f);
         float direction = m_speed >= 0.0f ? 1.0f : -1.0f;
         m_yaw += steer * turnRateDeg * speedFactor * direction * dt;

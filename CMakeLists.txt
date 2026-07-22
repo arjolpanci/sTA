@@ -17,6 +17,7 @@ add_executable(sTA
 	src/Game/world.cpp
 	src/Game/player.cpp
 	src/Game/vehicle.cpp
+	src/Game/pedestrian.cpp
 	lib/imgui/imgui.cpp
 	lib/imgui/imgui_draw.cpp
 	lib/imgui/imgui_tables.cpp
