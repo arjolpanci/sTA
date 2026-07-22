@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 
 #include "actor.hpp"
+#include "vertical_motion.hpp"
 #include "waypoint_path.hpp"
 
 enum class VehicleType
@@ -68,6 +69,7 @@ private:
     glm::vec3 m_boundsSize{ 0.0f }; // overall collision box (unrotated)
     std::vector<VehiclePart> m_parts;
     std::optional<WaypointPath> m_path; // set => this vehicle is traffic, not a parked decoration
+    VerticalMotion m_vertical; // only while controlled or patrolling - see update()
 };
 
 #endif

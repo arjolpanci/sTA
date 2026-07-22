@@ -33,6 +33,27 @@ void Pedestrian::update(const ActorContext& ctx, float dt)
             m_position.z -= delta.z;
     }
 
+    // vertical: gravity only - pedestrians don't jump
+    float deltaY = m_vertical.step(dt);
+    m_position.y += deltaY;
+    if (m_position.y <= 0.0f)
+    {
+        m_position.y = 0.0f;
+        m_vertical.land();
+    }
+    else if (ctx.collides(aabb()))
+    {
+        m_position.y -= deltaY;
+        if (deltaY < 0.0f)
+            m_vertical.land();
+        else
+            m_vertical.bonkHead();
+    }
+    else
+    {
+        m_vertical.grounded = false;
+    }
+
     m_path.advanceIfReached(m_position, 1.0f);
 }
 

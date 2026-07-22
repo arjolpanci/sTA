@@ -14,7 +14,7 @@ void Player::update(const ActorContext& ctx, float dt)
     if (!ctx.controlled)
         return; // riding inside a vehicle right now
 
-    // movement is camera-relative, GTA-style
+    // horizontal movement is camera-relative, GTA-style
     glm::vec3 forward = ctx.camera.forwardXZ();
     glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)));
 
@@ -24,24 +24,49 @@ void Player::update(const ActorContext& ctx, float dt)
     if (ctx.input.keyDown(GLFW_KEY_D)) dir += right;
     if (ctx.input.keyDown(GLFW_KEY_A)) dir -= right;
 
-    if (glm::dot(dir, dir) == 0.0f)
-        return;
+    if (glm::dot(dir, dir) > 0.0f)
+    {
+        dir = glm::normalize(dir);
+        yaw = glm::degrees(std::atan2(dir.x, dir.z));
 
-    dir = glm::normalize(dir);
-    yaw = glm::degrees(std::atan2(dir.x, dir.z));
+        float speed = ctx.input.keyDown(GLFW_KEY_LEFT_SHIFT) ? runSpeed : walkSpeed;
+        glm::vec3 delta = dir * speed * dt;
 
-    float speed = ctx.input.keyDown(GLFW_KEY_LEFT_SHIFT) ? runSpeed : walkSpeed;
-    glm::vec3 delta = dir * speed * dt;
+        // move one axis at a time and revert on hit, so we slide along walls
+        // instead of sticking to them
+        position.x += delta.x;
+        if (ctx.collides(aabb()))
+            position.x -= delta.x;
 
-    // move one axis at a time and revert on hit, so we slide along walls
-    // instead of sticking to them
-    position.x += delta.x;
-    if (ctx.collides(aabb()))
-        position.x -= delta.x;
+        position.z += delta.z;
+        if (ctx.collides(aabb()))
+            position.z -= delta.z;
+    }
 
-    position.z += delta.z;
-    if (ctx.collides(aabb()))
-        position.z -= delta.z;
+    // vertical: gravity, jumping, and landing on the ground or a low ledge -
+    // same move-and-revert pattern as above, just on the Y axis
+    if (ctx.input.keyDown(GLFW_KEY_SPACE))
+        m_vertical.jump(jumpSpeed);
+
+    float deltaY = m_vertical.step(dt);
+    position.y += deltaY;
+    if (position.y <= 0.0f)
+    {
+        position.y = 0.0f;
+        m_vertical.land();
+    }
+    else if (ctx.collides(aabb()))
+    {
+        position.y -= deltaY;
+        if (deltaY < 0.0f)
+            m_vertical.land();
+        else
+            m_vertical.bonkHead();
+    }
+    else
+    {
+        m_vertical.grounded = false;
+    }
 }
 
 void Player::render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const

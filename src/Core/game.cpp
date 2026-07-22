@@ -137,7 +137,10 @@ bool Game::init()
         if (Vehicle* driving = drivenVehicle())
             ImGui::Text("Driving (speed %.1f)", driving->speed());
         else
+        {
             ImGui::Text("Player pos: %.1f, %.1f, %.1f", m_player->position.x, m_player->position.y, m_player->position.z);
+            ImGui::Text("Grounded: %s", m_player->isGrounded() ? "yes" : "no");
+        }
         ImGui::Text("Actors: %zu", m_actors.size());
         ImGui::Separator();
         ImGui::Checkbox("Show collision boxes", &m_showColliders);
@@ -151,6 +154,7 @@ bool Game::init()
     m_debugUI.addPanel("Player", [this]() {
         ImGui::SliderFloat("Walk speed", &m_player->walkSpeed, 1.0f, 15.0f);
         ImGui::SliderFloat("Run speed", &m_player->runSpeed, 1.0f, 25.0f);
+        ImGui::SliderFloat("Jump speed", &m_player->jumpSpeed, 3.0f, 20.0f);
     });
 
     m_debugUI.addPanel("Camera", [this]() {

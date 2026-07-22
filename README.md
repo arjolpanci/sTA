@@ -11,13 +11,14 @@ Everything you see is placeholder geometry for now. The player is a cube. The ca
 - A walkable rectangular city block: asphalt ground, box buildings, border walls
 - A playable character with GTA-style third-person camera (mouse orbits, scroll zooms)
 - AABB collision that lets you slide along walls instead of walking through them
+- Gravity and jumping - fall off a ledge, hop onto a low one
 - Three drivable cars (sedan, taxi, van) with simple arcade physics: throttle, braking, speed-scaled steering
 - Get in and out of any car within reach
 - Pedestrians wandering the block, plus a couple of cars driving themselves around it
 - A debug menu (Dear ImGui) with live sliders for movement, camera, and vehicle physics, plus a collision-box wireframe view
 - A fixed-timestep game loop, so the simulation runs the same regardless of framerate
 
-Not yet: gravity, real models, sounds, or anything resembling a mission.
+Not yet: real models, sounds, oriented (rotated) collision boxes, or anything resembling a mission.
 
 ## Building
 
@@ -43,6 +44,7 @@ Open the folder in Visual Studio with its CMake integration and build the x64-De
 |---|---|
 | W / A / S / D | Move (or drive, while in a car) |
 | Shift | Run |
+| Space | Jump |
 | F | Enter/exit the nearest car |
 | Mouse | Orbit camera |
 | Scroll | Zoom |

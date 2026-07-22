@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 
 #include "actor.hpp"
+#include "vertical_motion.hpp"
 #include "waypoint_path.hpp"
 
 // A simple wandering NPC: cube-shaped, walks a looping/patrolling waypoint
@@ -26,6 +27,7 @@ private:
     glm::vec3 m_size{ 0.5f, 1.7f, 0.5f };
     glm::vec3 m_color;
     WaypointPath m_path;
+    VerticalMotion m_vertical;
 };
 
 #endif
