@@ -6,15 +6,15 @@
 
 void Camera::processMouse(float dx, float dy)
 {
-    m_yaw += dx * m_sensitivity;
-    m_pitch += dy * m_sensitivity;
-    m_pitch = std::clamp(m_pitch, -5.0f, 70.0f);
+    m_yaw += dx * sensitivity;
+    m_pitch += dy * sensitivity;
+    m_pitch = std::clamp(m_pitch, minPitch, maxPitch);
 }
 
 void Camera::processScroll(float dy)
 {
     m_distance -= dy;
-    m_distance = std::clamp(m_distance, 3.0f, 14.0f);
+    m_distance = std::clamp(m_distance, minDistance, maxDistance);
 }
 
 glm::vec3 Camera::forwardDir() const

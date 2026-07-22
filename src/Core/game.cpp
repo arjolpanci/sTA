@@ -6,6 +6,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <imgui.h>
 
 #include "Rendering/mesh.hpp"
 #include "Rendering/renderer.hpp"
@@ -34,6 +35,8 @@ Game::Game() = default;
 Game::~Game()
 {
     // GL resources must be destroyed while the context still exists
+    if (m_debugUIReady)
+        m_debugUI.shutdown();
     m_renderer.reset();
     m_cubeMesh.reset();
     m_groundMesh.reset();
@@ -86,6 +89,38 @@ bool Game::init()
         m_world.addCollider(vehicle.aabb());
 
     m_player.position = glm::vec3(0.0f, 0.0f, 0.0f);
+
+    // debug UI: panels are registered here, once, by whatever owns the data
+    // they show. Adding a new panel elsewhere never touches this file.
+    m_debugUI.init(m_window);
+    m_debugUIReady = true;
+
+    m_debugUI.addPanel("Debug", [this]() {
+        ImGui::Text("FPS: %.0f (%.2f ms/frame)", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
+        ImGui::Text("Player pos: %.1f, %.1f, %.1f", m_player.position.x, m_player.position.y, m_player.position.z);
+        ImGui::Text("Player yaw: %.1f", m_player.yaw);
+        ImGui::Separator();
+        ImGui::Checkbox("Show collision boxes", &m_showColliders);
+        ImGui::Checkbox("Show ImGui demo window", &m_showImGuiDemo);
+        ImGui::Separator();
+        ImGui::TextDisabled("F1 toggles this menu");
+        if (m_showImGuiDemo)
+            ImGui::ShowDemoWindow(&m_showImGuiDemo);
+    });
+
+    m_debugUI.addPanel("Player", [this]() {
+        ImGui::SliderFloat("Walk speed", &m_player.walkSpeed, 1.0f, 15.0f);
+        ImGui::SliderFloat("Run speed", &m_player.runSpeed, 1.0f, 25.0f);
+    });
+
+    m_debugUI.addPanel("Camera", [this]() {
+        ImGui::SliderFloat("Sensitivity", &m_camera.sensitivity, 0.02f, 0.5f);
+        ImGui::SliderFloat("Min distance", &m_camera.minDistance, 1.0f, 10.0f);
+        ImGui::SliderFloat("Max distance", &m_camera.maxDistance, 5.0f, 30.0f);
+        ImGui::SliderFloat("Min pitch", &m_camera.minPitch, -30.0f, 0.0f);
+        ImGui::SliderFloat("Max pitch", &m_camera.maxPitch, 30.0f, 89.0f);
+    });
+
     return true;
 }
 
@@ -112,10 +147,16 @@ int Game::run()
         glfwPollEvents();
         if (m_input.keyDown(GLFW_KEY_ESCAPE))
             glfwSetWindowShouldClose(m_window, true);
+        if (m_input.keyPressed(GLFW_KEY_F1))
+            m_debugUI.toggle();
 
-        // camera look is per-frame (smoothest), simulation is fixed-step
-        m_camera.processMouse(m_input.mouseDX(), m_input.mouseDY());
-        m_camera.processScroll(m_input.scrollDY());
+        // camera look is per-frame (smoothest), simulation is fixed-step;
+        // suppressed while the debug UI is open so the mouse drives it instead
+        if (!m_debugUI.visible())
+        {
+            m_camera.processMouse(m_input.mouseDX(), m_input.mouseDY());
+            m_camera.processScroll(m_input.scrollDY());
+        }
 
         while (accumulator >= SIM_DT)
         {
@@ -132,11 +173,16 @@ int Game::run()
 
 void Game::update(float dt)
 {
-    m_player.update(m_input, m_camera, m_world, dt);
+    // suppressed while the debug UI is open, so tweaking a slider doesn't
+    // also walk the player
+    if (!m_debugUI.visible())
+        m_player.update(m_input, m_camera, m_world, dt);
 }
 
 void Game::render()
 {
+    m_debugUI.beginFrame(); // builds this frame's panels (no-op while hidden)
+
     int width = 0, height = 0;
     glfwGetFramebufferSize(m_window, &width, &height);
     float aspect = height > 0 ? (float)width / (float)height : 1.0f;
@@ -171,6 +217,31 @@ void Game::render()
             m_renderer->draw(*m_cubeMesh, model, part.color);
         }
     }
+
+    // collision debug view: every AABB actually used by World::collides(),
+    // drawn as a wireframe so it can be checked against the visible geometry
+    if (m_showColliders)
+    {
+        auto drawAABBWire = [this](const AABB& box, const glm::vec3& color) {
+            glm::vec3 center = (box.min + box.max) * 0.5f;
+            glm::vec3 size = box.max - box.min;
+            m_renderer->draw(*m_cubeMesh, boxMatrix(center, size), color);
+        };
+
+        glDisable(GL_CULL_FACE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+        for (const StaticBox& box : m_world.boxes())
+            drawAABBWire(AABB::fromCenterHalf(box.center, box.size * 0.5f), glm::vec3(0.1f, 1.0f, 0.2f));
+        drawAABBWire(m_player.aabb(), glm::vec3(1.0f, 0.9f, 0.1f));
+        for (const Vehicle& vehicle : m_vehicles)
+            drawAABBWire(vehicle.aabb(), glm::vec3(0.2f, 0.6f, 1.0f));
+
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glEnable(GL_CULL_FACE);
+    }
+
+    m_debugUI.render(); // draws the UI on top of everything above
 
     glfwSwapBuffers(m_window);
 }

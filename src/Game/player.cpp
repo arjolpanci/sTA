@@ -25,7 +25,7 @@ void Player::update(const Input& input, const Camera& camera, const World& world
     dir = glm::normalize(dir);
     yaw = glm::degrees(std::atan2(dir.x, dir.z));
 
-    float speed = input.keyDown(GLFW_KEY_LEFT_SHIFT) ? m_runSpeed : m_walkSpeed;
+    float speed = input.keyDown(GLFW_KEY_LEFT_SHIFT) ? runSpeed : walkSpeed;
     glm::vec3 delta = dir * speed * dt;
 
     // move one axis at a time and revert on hit, so we slide along walls

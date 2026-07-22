@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "Core/input.hpp"
+#include "Core/debug_ui.hpp"
 #include "Rendering/camera.hpp"
 #include "Game/world.hpp"
 #include "Game/player.hpp"
@@ -35,10 +36,14 @@ private:
 
     GLFWwindow* m_window = nullptr;
     Input m_input;
+    DebugUI m_debugUI;
     Camera m_camera;
     World m_world;
     Player m_player;
     std::vector<Vehicle> m_vehicles;
+    bool m_showColliders = false;
+    bool m_showImGuiDemo = false;
+    bool m_debugUIReady = false; // guards DebugUI::shutdown() against a partial init() failure
 
     // GL resources live behind pointers: they can only be created in init(),
     // once the OpenGL context exists

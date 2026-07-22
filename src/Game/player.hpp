@@ -21,9 +21,9 @@ public:
     float yaw = 0.0f;                      // facing, degrees around Y
     glm::vec3 size{ 0.6f, 1.8f, 0.6f };
 
-private:
-    float m_walkSpeed = 4.0f;
-    float m_runSpeed = 9.0f;
+    // tunable parameters, exposed so a debug UI can adjust them live
+    float walkSpeed = 4.0f;
+    float runSpeed = 9.0f;
 };
 
 #endif

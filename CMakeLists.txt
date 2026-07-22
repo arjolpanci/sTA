@@ -8,6 +8,7 @@ add_executable(sTA
 	src/main.cpp
 	src/Core/game.cpp
 	src/Core/input.cpp
+	src/Core/debug_ui.cpp
 	src/Rendering/shader.cpp
 	src/Rendering/camera.cpp
 	src/Rendering/mesh.cpp
@@ -16,6 +17,13 @@ add_executable(sTA
 	src/Game/world.cpp
 	src/Game/player.cpp
 	src/Game/vehicle.cpp
+	lib/imgui/imgui.cpp
+	lib/imgui/imgui_draw.cpp
+	lib/imgui/imgui_tables.cpp
+	lib/imgui/imgui_widgets.cpp
+	lib/imgui/imgui_demo.cpp
+	lib/imgui/backends/imgui_impl_glfw.cpp
+	lib/imgui/backends/imgui_impl_opengl3.cpp
 )
 
 add_custom_command(TARGET sTA POST_BUILD
@@ -32,7 +40,18 @@ set(GLAD_C_FILE "${PROJ_ROOT}/lib/glad.c")
 # ------------------------------------------------------------
 
 # Include path
-target_include_directories(sTA PRIVATE "${INCLUDE_DIR}" "${PROJ_ROOT}/src")
+target_include_directories(sTA PRIVATE "${INCLUDE_DIR}" "${INCLUDE_DIR}/imgui" "${INCLUDE_DIR}/imgui/backends" "${PROJ_ROOT}/src")
+
+# Dear ImGui's OpenGL3 backend bundles its own GL function loader by default;
+# IMGUI_IMPL_OPENGL_LOADER_CUSTOM tells it to skip that and use whatever GL
+# header is already visible instead - so we force-include glad (already
+# vendored and loaded by Game::init) into just that one source file
+target_compile_definitions(sTA PRIVATE IMGUI_IMPL_OPENGL_LOADER_CUSTOM)
+if(MSVC)
+  set_source_files_properties(lib/imgui/backends/imgui_impl_opengl3.cpp PROPERTIES COMPILE_OPTIONS "/FI${INCLUDE_DIR}/glad/glad.h")
+else()
+  set_source_files_properties(lib/imgui/backends/imgui_impl_opengl3.cpp PROPERTIES COMPILE_OPTIONS "-include${INCLUDE_DIR}/glad/glad.h")
+endif()
 
 # Compiling glad.c
 if(EXISTS "${GLAD_C_FILE}")

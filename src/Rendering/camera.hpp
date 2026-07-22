@@ -16,6 +16,13 @@ public:
     glm::vec3 position() const { return m_position; }
     glm::vec3 forwardXZ() const;             // camera facing projected onto the ground plane
 
+    // tunable parameters, exposed so a debug UI can adjust them live
+    float sensitivity = 0.1f;
+    float minDistance = 3.0f;
+    float maxDistance = 14.0f;
+    float minPitch = -5.0f;
+    float maxPitch = 70.0f;
+
 private:
     glm::vec3 forwardDir() const;
 
@@ -25,7 +32,6 @@ private:
     float m_yaw = -90.0f;      // degrees around Y
     float m_pitch = 20.0f;     // degrees above the horizon
     float m_distance = 7.0f;
-    float m_sensitivity = 0.1f;
 };
 
 #endif

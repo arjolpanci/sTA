@@ -16,6 +16,15 @@ bool Input::keyDown(int key) const
     return glfwGetKey(m_window, key) == GLFW_PRESS;
 }
 
+bool Input::keyPressed(int key)
+{
+    bool down = keyDown(key);
+    bool& wasDown = m_prevKeyDown[key];
+    bool pressed = down && !wasDown;
+    wasDown = down;
+    return pressed;
+}
+
 void Input::endFrame()
 {
     m_mouseDX = 0.0f;
