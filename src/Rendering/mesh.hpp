@@ -22,6 +22,11 @@ public:
     static std::vector<float> cubeVertices();                 // unit cube centered at origin
     static std::vector<float> planeVertices(float uvTiling);  // unit XZ quad at y=0, facing up
 
+    // unit wedge/ramp: flush with the ground (y=-0.5) across the whole
+    // footprint, rising to full height (y=+0.5) at +Z. Local +Z is "up the
+    // slope" - Mesh::boxMatrix's yaw parameter re-orients that as needed.
+    static std::vector<float> rampVertices();
+
     // model matrix for a box: translate to center, spin around Y, stretch the
     // unit cube/plane to size - shared by everything that draws a box
     static glm::mat4 boxMatrix(const glm::vec3& center, const glm::vec3& size, float yawDeg = 0.0f);

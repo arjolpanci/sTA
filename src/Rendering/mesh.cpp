@@ -61,6 +61,17 @@ namespace
         for (int i = 0; i < 6; ++i)
             v.insert(v.end(), { pos[i].x, pos[i].y, pos[i].z, n.x, n.y, n.z, uvs[i].x, uvs[i].y });
     }
+
+    // appends one triangular face; corners must be counter-clockwise when
+    // viewed from outside, same rule as appendFace
+    void appendTri(std::vector<float>& v, const glm::vec3& n,
+                   const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
+    {
+        const glm::vec3 pos[3] = { a, b, c };
+        const glm::vec2 uvs[3] = { {0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 1.0f} };
+        for (int i = 0; i < 3; ++i)
+            v.insert(v.end(), { pos[i].x, pos[i].y, pos[i].z, n.x, n.y, n.z, uvs[i].x, uvs[i].y });
+    }
 }
 
 std::vector<float> Mesh::cubeVertices()
@@ -75,6 +86,30 @@ std::vector<float> Mesh::cubeVertices()
     appendFace(v, { 1, 0, 0}, { 0.5f,-0.5f, 0.5f}, { 0.5f,-0.5f,-0.5f}, { 0.5f, 0.5f,-0.5f}, { 0.5f, 0.5f, 0.5f}, uv); // right
     appendFace(v, { 0, 1, 0}, {-0.5f, 0.5f, 0.5f}, { 0.5f, 0.5f, 0.5f}, { 0.5f, 0.5f,-0.5f}, {-0.5f, 0.5f,-0.5f}, uv); // top
     appendFace(v, { 0,-1, 0}, {-0.5f,-0.5f,-0.5f}, { 0.5f,-0.5f,-0.5f}, { 0.5f,-0.5f, 0.5f}, {-0.5f,-0.5f, 0.5f}, uv); // bottom
+    return v;
+}
+
+std::vector<float> Mesh::rampVertices()
+{
+    std::vector<float> v;
+    v.reserve(18 * 8);
+    const glm::vec2 uv[4] = { {0,0}, {1,0}, {1,1}, {0,1} };
+
+    // low end (z=-0.5): flush with the ground, zero height, so bottom and
+    // top coincide there and no face is needed to "cap" it
+    const glm::vec3 lowLeft(-0.5f, -0.5f, -0.5f);
+    const glm::vec3 lowRight(0.5f, -0.5f, -0.5f);
+    // high end (z=+0.5): full height
+    const glm::vec3 highBottomLeft(-0.5f, -0.5f, 0.5f);
+    const glm::vec3 highBottomRight(0.5f, -0.5f, 0.5f);
+    const glm::vec3 highTopLeft(-0.5f, 0.5f, 0.5f);
+    const glm::vec3 highTopRight(0.5f, 0.5f, 0.5f);
+
+    appendFace(v, { 0, -1, 0 }, lowLeft, lowRight, highBottomRight, highBottomLeft, uv);            // bottom
+    appendFace(v, { 0, 0, 1 }, highBottomLeft, highBottomRight, highTopRight, highTopLeft, uv);     // tall-end wall
+    appendFace(v, glm::normalize(glm::vec3(0, 1, -1)), lowLeft, lowRight, highTopRight, highTopLeft, uv); // sloped top
+    appendTri(v, { -1, 0, 0 }, lowLeft, highBottomLeft, highTopLeft);   // left side
+    appendTri(v, { 1, 0, 0 }, lowRight, highTopRight, highBottomRight); // right side
     return v;
 }
 

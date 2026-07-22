@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <utility>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -32,6 +33,7 @@ Game::~Game()
     m_renderer.reset();
     m_cubeMesh.reset();
     m_groundMesh.reset();
+    m_rampMesh.reset();
     m_groundTexture.reset();
     if (m_window)
         glfwTerminate();
@@ -71,6 +73,7 @@ bool Game::init()
     m_renderer = std::make_unique<Renderer>();
     m_cubeMesh = std::make_unique<Mesh>(Mesh::cubeVertices());
     m_groundMesh = std::make_unique<Mesh>(Mesh::planeVertices(40.0f));
+    m_rampMesh = std::make_unique<Mesh>(Mesh::rampVertices());
     m_groundTexture = std::make_unique<Texture>("resources/textures/asphalt.jpg");
 
     // player
@@ -305,9 +308,11 @@ void Game::update(float dt)
     if (m_debugUI.visible())
         return;
 
+    auto groundHeightAt = [this](float x, float z) { return m_world.groundHeightAt(x, z); };
+
     for (auto& actor : m_actors)
     {
-        ActorContext ctx{ m_input, m_camera, actor.get() == m_controlled, collisionPredicateFor(actor.get()) };
+        ActorContext ctx{ m_input, m_camera, actor.get() == m_controlled, collisionPredicateFor(actor.get()), groundHeightAt };
         actor->update(ctx, dt);
     }
 }
@@ -334,6 +339,15 @@ void Game::render()
     for (const StaticBox& box : m_world.boxes())
         m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(box.center, box.size), box.color);
 
+    // ramps: the unit wedge rises along local +Z, flush with the ground at
+    // -Z - yaw re-orients that to whichever world axis the ramp climbs
+    for (const Ramp& ramp : m_world.ramps())
+    {
+        glm::vec3 center(ramp.footprintCenter.x, (ramp.lowHeight + ramp.highHeight) * 0.5f, ramp.footprintCenter.z);
+        glm::vec3 size(ramp.footprintSize.x, ramp.highHeight - ramp.lowHeight, ramp.footprintSize.y);
+        m_renderer->draw(*m_rampMesh, Mesh::boxMatrix(center, size, ramp.alongX ? 90.0f : 0.0f), ramp.color);
+    }
+
     // every actor draws itself; Player no-ops while riding in a vehicle
     for (const auto& actor : m_actors)
         actor->render(*m_renderer, *m_cubeMesh, actor.get() == m_controlled);
@@ -354,6 +368,18 @@ void Game::render()
 
         for (const StaticBox& box : m_world.boxes())
             drawAABBWire(AABB::fromCenterHalf(box.center, box.size * 0.5f), glm::vec3(0.1f, 1.0f, 0.2f));
+
+        // ramps: shown as their overall bounding volume (low to high end) -
+        // an approximation of the sloped shape, same spirit as the AABB
+        // approximation already used for rotated vehicles
+        for (const Ramp& ramp : m_world.ramps())
+        {
+            glm::vec3 center(ramp.footprintCenter.x, (ramp.lowHeight + ramp.highHeight) * 0.5f, ramp.footprintCenter.z);
+            glm::vec3 half(ramp.footprintSize.x * 0.5f, (ramp.highHeight - ramp.lowHeight) * 0.5f, ramp.footprintSize.y * 0.5f);
+            if (ramp.alongX)
+                std::swap(half.x, half.z);
+            drawAABBWire(AABB::fromCenterHalf(center, half), glm::vec3(1.0f, 0.6f, 0.1f));
+        }
 
         for (const auto& actor : m_actors)
         {

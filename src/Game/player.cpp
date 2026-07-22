@@ -43,30 +43,13 @@ void Player::update(const ActorContext& ctx, float dt)
             position.z -= delta.z;
     }
 
-    // vertical: gravity, jumping, and landing on the ground or a low ledge -
-    // same move-and-revert pattern as above, just on the Y axis
+    // vertical: gravity, jumping, and following the ground - flat, a ramp,
+    // or a rooftop - underfoot
     if (ctx.input.keyDown(GLFW_KEY_SPACE))
         m_vertical.jump(jumpSpeed);
 
-    float deltaY = m_vertical.step(dt);
-    position.y += deltaY;
-    if (position.y <= 0.0f)
-    {
-        position.y = 0.0f;
-        m_vertical.land();
-    }
-    else if (ctx.collides(aabb()))
-    {
-        position.y -= deltaY;
-        if (deltaY < 0.0f)
-            m_vertical.land();
-        else
-            m_vertical.bonkHead();
-    }
-    else
-    {
-        m_vertical.grounded = false;
-    }
+    float groundY = ctx.groundHeightAt(position.x, position.z);
+    resolveVerticalMotion(m_vertical, position.y, dt, groundY, [&]() { return ctx.collides(aabb()); });
 }
 
 void Player::render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const

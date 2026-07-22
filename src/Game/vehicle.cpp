@@ -143,26 +143,9 @@ void Vehicle::update(const ActorContext& ctx, float dt)
     }
 
     // vertical: gravity only - vehicles don't jump, just fall if driven off
-    // a ledge and settle back onto the ground (or another surface below)
-    float deltaY = m_vertical.step(dt);
-    m_position.y += deltaY;
-    if (m_position.y <= 0.0f)
-    {
-        m_position.y = 0.0f;
-        m_vertical.land();
-    }
-    else if (ctx.collides(aabb()))
-    {
-        m_position.y -= deltaY;
-        if (deltaY < 0.0f)
-            m_vertical.land();
-        else
-            m_vertical.bonkHead();
-    }
-    else
-    {
-        m_vertical.grounded = false;
-    }
+    // a ledge and follow the ground (or a ramp) underneath otherwise
+    float groundY = ctx.groundHeightAt(m_position.x, m_position.z);
+    resolveVerticalMotion(m_vertical, m_position.y, dt, groundY, [&]() { return ctx.collides(aabb()); });
 }
 
 void Vehicle::render(Renderer& renderer, const Mesh& cubeMesh, bool /*controlled*/) const

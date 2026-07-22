@@ -11,7 +11,7 @@ Everything you see is placeholder geometry for now. The player is a cube. The ca
 - A walkable rectangular city block: asphalt ground, box buildings, border walls
 - A playable character with GTA-style third-person camera (mouse orbits, scroll zooms)
 - AABB collision that lets you slide along walls instead of walking through them
-- Gravity and jumping - fall off a ledge, hop onto a low one
+- Gravity and jumping - fall off a ledge, hop onto a low one, walk up a ramp
 - Three drivable cars (sedan, taxi, van) with simple arcade physics: throttle, braking, speed-scaled steering
 - Get in and out of any car within reach
 - Pedestrians wandering the block, plus a couple of cars driving themselves around it

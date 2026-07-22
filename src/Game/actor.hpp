@@ -20,6 +20,7 @@ struct ActorContext
     const Camera& camera;
     bool controlled;                          // true only for the one actor currently receiving player input
     std::function<bool(const AABB&)> collides; // world geometry + every other actor, precomputed for this actor
+    std::function<float(float, float)> groundHeightAt; // ground height at (x, z): flat floor, a rooftop, or a ramp
 };
 
 // Common interface for anything that lives in the world and needs a

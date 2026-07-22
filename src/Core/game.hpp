@@ -63,6 +63,7 @@ private:
     std::unique_ptr<Renderer> m_renderer;
     std::unique_ptr<Mesh> m_cubeMesh;
     std::unique_ptr<Mesh> m_groundMesh;
+    std::unique_ptr<Mesh> m_rampMesh;
     std::unique_ptr<Texture> m_groundTexture;
 };
 
