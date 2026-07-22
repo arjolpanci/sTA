@@ -1,19 +1,21 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 
+#include <functional>
 #include <glm/glm.hpp>
 
 #include "aabb.hpp"
 
 class Input;
 class Camera;
-class World;
 
 // The playable character: a cube for now, replaced by a real model later.
 class Player
 {
 public:
-    void update(const Input& input, const Camera& camera, const World& world, float dt);
+    // collides(box) reports whether box overlaps something the player should
+    // stop for - Game builds it so Player never needs to know about World
+    void update(const Input& input, const Camera& camera, float dt, const std::function<bool(const AABB&)>& collides);
 
     AABB aabb() const;
 

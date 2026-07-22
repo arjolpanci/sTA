@@ -11,10 +11,12 @@ Everything you see is placeholder geometry for now. The player is a cube. The ca
 - A walkable rectangular city block: asphalt ground, box buildings, border walls
 - A playable character with GTA-style third-person camera (mouse orbits, scroll zooms)
 - AABB collision that lets you slide along walls instead of walking through them
-- Three parked cars (sedan, taxi, van) assembled from boxes
+- Three drivable cars (sedan, taxi, van) with simple arcade physics: throttle, braking, speed-scaled steering
+- Get in and out of any car within reach
+- A debug menu (Dear ImGui) with live sliders for movement, camera, and vehicle physics, plus a collision-box wireframe view
 - A fixed-timestep game loop, so the simulation runs the same regardless of framerate
 
-Not yet: driving, gravity, real models, sounds, or anything resembling a mission.
+Not yet: gravity, real models, sounds, or anything resembling a mission.
 
 ## Building
 
@@ -38,12 +40,14 @@ Open the folder in Visual Studio with its CMake integration and build the x64-De
 
 | Key | Action |
 |---|---|
-| W / A / S / D | Move |
+| W / A / S / D | Move (or drive, while in a car) |
 | Shift | Run |
+| F | Enter/exit the nearest car |
 | Mouse | Orbit camera |
 | Scroll | Zoom |
+| F1 | Debug menu |
 | Esc | Quit |
 
 ## Dependencies
 
-glad, glm, stb_image and the GLFW headers are vendored in `include/`, so there's nothing to fetch. On Linux the GLFW library itself comes from the system; on Windows you provide `glfw3.lib` yourself.
+glad, glm, stb_image, Dear ImGui, and the GLFW headers are vendored in `include/`, so there's nothing to fetch. On Linux the GLFW library itself comes from the system; on Windows you provide `glfw3.lib` yourself.

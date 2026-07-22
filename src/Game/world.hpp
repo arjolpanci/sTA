@@ -24,9 +24,6 @@ public:
     const std::vector<StaticBox>& boxes() const { return m_boxes; }
     glm::vec2 groundSize() const { return m_groundSize; }
 
-    // register an extra static collider (e.g. a parked car)
-    void addCollider(const AABB& box);
-
     bool collides(const AABB& box) const;
 
 private:

@@ -33,6 +33,7 @@ private:
     bool init();
     void update(float dt);
     void render();
+    void enterOrExitVehicle();
 
     GLFWwindow* m_window = nullptr;
     Input m_input;
@@ -41,6 +42,7 @@ private:
     World m_world;
     Player m_player;
     std::vector<Vehicle> m_vehicles;
+    int m_drivingIndex = -1; // -1 = on foot; otherwise index into m_vehicles being driven
     bool m_showColliders = false;
     bool m_showImGuiDemo = false;
     bool m_debugUIReady = false; // guards DebugUI::shutdown() against a partial init() failure

@@ -29,11 +29,6 @@ void World::addBox(const glm::vec3& centerOnGround, const glm::vec3& size, const
     m_colliders.push_back(AABB::fromCenterHalf(center, size * 0.5f));
 }
 
-void World::addCollider(const AABB& box)
-{
-    m_colliders.push_back(box);
-}
-
 bool World::collides(const AABB& box) const
 {
     for (const AABB& collider : m_colliders)

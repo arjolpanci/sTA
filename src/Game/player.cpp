@@ -5,9 +5,8 @@
 
 #include "Core/input.hpp"
 #include "Rendering/camera.hpp"
-#include "world.hpp"
 
-void Player::update(const Input& input, const Camera& camera, const World& world, float dt)
+void Player::update(const Input& input, const Camera& camera, float dt, const std::function<bool(const AABB&)>& collides)
 {
     // movement is camera-relative, GTA-style
     glm::vec3 forward = camera.forwardXZ();
@@ -31,11 +30,11 @@ void Player::update(const Input& input, const Camera& camera, const World& world
     // move one axis at a time and revert on hit, so we slide along walls
     // instead of sticking to them
     position.x += delta.x;
-    if (world.collides(aabb()))
+    if (collides(aabb()))
         position.x -= delta.x;
 
     position.z += delta.z;
-    if (world.collides(aabb()))
+    if (collides(aabb()))
         position.z -= delta.z;
 }
 

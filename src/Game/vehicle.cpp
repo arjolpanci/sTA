@@ -1,7 +1,11 @@
 #include "vehicle.hpp"
 
+#include <algorithm>
 #include <cmath>
-#include <utility>
+
+#include <GLFW/glfw3.h>
+
+#include "Core/input.hpp"
 
 namespace
 {
@@ -54,12 +58,71 @@ Vehicle::Vehicle(VehicleType type, const glm::vec3& position, float yaw)
     }
 }
 
+glm::vec3 Vehicle::forward() const
+{
+    float r = glm::radians(m_yaw);
+    return glm::vec3(sin(r), 0.0f, cos(r));
+}
+
+void Vehicle::updateDriving(const Input& input, float dt, const std::function<bool(const AABB&)>& collides)
+{
+    float throttle = 0.0f;
+    if (input.keyDown(GLFW_KEY_W)) throttle = 1.0f;
+    else if (input.keyDown(GLFW_KEY_S)) throttle = -1.0f;
+
+    if (throttle > 0.0f)
+        m_speed += acceleration * dt;
+    else if (throttle < 0.0f)
+        // braking is stronger than accelerating in reverse, like a real pedal
+        m_speed -= (m_speed > 0.0f ? brakeDeceleration : acceleration) * dt;
+    else if (m_speed > 0.0f)
+        m_speed = std::max(0.0f, m_speed - friction * dt);
+    else if (m_speed < 0.0f)
+        m_speed = std::min(0.0f, m_speed + friction * dt);
+
+    m_speed = std::clamp(m_speed, -maxReverseSpeed, maxSpeed);
+
+    // steering: scaled by speed so the car can't spin in place, and flipped
+    // in reverse so it steers the way a real car does when backing up
+    if (std::abs(m_speed) > 0.01f)
+    {
+        float steer = 0.0f;
+        if (input.keyDown(GLFW_KEY_A)) steer -= 1.0f;
+        if (input.keyDown(GLFW_KEY_D)) steer += 1.0f;
+
+        float speedFactor = std::clamp(std::abs(m_speed) / maxSpeed, 0.2f, 1.0f);
+        float direction = m_speed >= 0.0f ? 1.0f : -1.0f;
+        m_yaw += steer * turnRateDeg * speedFactor * direction * dt;
+    }
+
+    glm::vec3 delta = forward() * m_speed * dt;
+
+    // move one axis at a time and revert on hit, killing speed so the car
+    // stops cleanly against a wall instead of clipping through it
+    m_position.x += delta.x;
+    if (collides(aabb()))
+    {
+        m_position.x -= delta.x;
+        m_speed = 0.0f;
+    }
+
+    m_position.z += delta.z;
+    if (collides(aabb()))
+    {
+        m_position.z -= delta.z;
+        m_speed = 0.0f;
+    }
+}
+
 AABB Vehicle::aabb() const
 {
     glm::vec3 half = m_boundsSize * 0.5f;
-    // axis-aligned box: at 90/270 degrees the car's length lies along X
-    int yawMod = ((static_cast<int>(std::round(m_yaw)) % 180) + 180) % 180;
-    if (yawMod == 90)
-        std::swap(half.x, half.z);
-    return AABB::fromCenterHalf(m_position + glm::vec3(0.0f, half.y, 0.0f), half);
+    // tightest axis-aligned box enclosing the rotated footprint: the local
+    // half-extents projected onto world X/Z. Reduces to the exact box at
+    // 0/90/180/270 degrees and over-approximates at in-between angles.
+    float r = glm::radians(m_yaw);
+    float c = std::abs(cos(r));
+    float s = std::abs(sin(r));
+    glm::vec3 rotatedHalf(half.x * c + half.z * s, half.y, half.x * s + half.z * c);
+    return AABB::fromCenterHalf(m_position + glm::vec3(0.0f, half.y, 0.0f), rotatedHalf);
 }
