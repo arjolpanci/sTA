@@ -1,23 +1,17 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 
-#include <functional>
 #include <glm/glm.hpp>
 
-#include "aabb.hpp"
-
-class Input;
-class Camera;
+#include "actor.hpp"
 
 // The playable character: a cube for now, replaced by a real model later.
-class Player
+class Player : public Actor
 {
 public:
-    // collides(box) reports whether box overlaps something the player should
-    // stop for - Game builds it so Player never needs to know about World
-    void update(const Input& input, const Camera& camera, float dt, const std::function<bool(const AABB&)>& collides);
-
-    AABB aabb() const;
+    void update(const ActorContext& ctx, float dt) override;
+    void render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const override;
+    AABB aabb() const override;
 
     glm::vec3 position{ 0.0f };            // feet position, y = ground level
     float yaw = 0.0f;                      // facing, degrees around Y

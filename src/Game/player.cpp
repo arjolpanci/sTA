@@ -1,22 +1,28 @@
 #include "player.hpp"
 
 #include <cmath>
+
+#include "Rendering/camera.hpp"  // pulls in glad.h; must precede GLFW/glfw3.h
+#include "Rendering/mesh.hpp"
+#include "Rendering/renderer.hpp"
 #include <GLFW/glfw3.h>
 
 #include "Core/input.hpp"
-#include "Rendering/camera.hpp"
 
-void Player::update(const Input& input, const Camera& camera, float dt, const std::function<bool(const AABB&)>& collides)
+void Player::update(const ActorContext& ctx, float dt)
 {
+    if (!ctx.controlled)
+        return; // riding inside a vehicle right now
+
     // movement is camera-relative, GTA-style
-    glm::vec3 forward = camera.forwardXZ();
+    glm::vec3 forward = ctx.camera.forwardXZ();
     glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)));
 
     glm::vec3 dir(0.0f);
-    if (input.keyDown(GLFW_KEY_W)) dir += forward;
-    if (input.keyDown(GLFW_KEY_S)) dir -= forward;
-    if (input.keyDown(GLFW_KEY_D)) dir += right;
-    if (input.keyDown(GLFW_KEY_A)) dir -= right;
+    if (ctx.input.keyDown(GLFW_KEY_W)) dir += forward;
+    if (ctx.input.keyDown(GLFW_KEY_S)) dir -= forward;
+    if (ctx.input.keyDown(GLFW_KEY_D)) dir += right;
+    if (ctx.input.keyDown(GLFW_KEY_A)) dir -= right;
 
     if (glm::dot(dir, dir) == 0.0f)
         return;
@@ -24,18 +30,27 @@ void Player::update(const Input& input, const Camera& camera, float dt, const st
     dir = glm::normalize(dir);
     yaw = glm::degrees(std::atan2(dir.x, dir.z));
 
-    float speed = input.keyDown(GLFW_KEY_LEFT_SHIFT) ? runSpeed : walkSpeed;
+    float speed = ctx.input.keyDown(GLFW_KEY_LEFT_SHIFT) ? runSpeed : walkSpeed;
     glm::vec3 delta = dir * speed * dt;
 
     // move one axis at a time and revert on hit, so we slide along walls
     // instead of sticking to them
     position.x += delta.x;
-    if (collides(aabb()))
+    if (ctx.collides(aabb()))
         position.x -= delta.x;
 
     position.z += delta.z;
-    if (collides(aabb()))
+    if (ctx.collides(aabb()))
         position.z -= delta.z;
+}
+
+void Player::render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const
+{
+    if (!controlled)
+        return; // hidden while riding in a vehicle
+
+    renderer.draw(cubeMesh, Mesh::boxMatrix(position + glm::vec3(0.0f, size.y * 0.5f, 0.0f), size, yaw),
+                  glm::vec3(0.85f, 0.30f, 0.20f));
 }
 
 AABB Player::aabb() const

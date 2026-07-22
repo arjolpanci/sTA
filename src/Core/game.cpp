@@ -18,16 +18,6 @@ namespace
     {
         glViewport(0, 0, width, height);
     }
-
-    // model matrix for a box: translate to center, spin around Y, stretch the
-    // unit cube/plane to size
-    glm::mat4 boxMatrix(const glm::vec3& center, const glm::vec3& size, float yawDeg = 0.0f)
-    {
-        glm::mat4 m = glm::translate(glm::mat4(1.0f), center);
-        if (yawDeg != 0.0f)
-            m = glm::rotate(m, glm::radians(yawDeg), glm::vec3(0.0f, 1.0f, 0.0f));
-        return glm::scale(m, size);
-    }
 }
 
 Game::Game() = default;
@@ -81,12 +71,22 @@ bool Game::init()
     m_groundMesh = std::make_unique<Mesh>(Mesh::planeVertices(40.0f));
     m_groundTexture = std::make_unique<Texture>("resources/textures/asphalt.jpg");
 
-    // parked cars
-    m_vehicles.emplace_back(VehicleType::Taxi, glm::vec3(8.0f, 0.0f, 6.0f), 0.0f);
-    m_vehicles.emplace_back(VehicleType::Sedan, glm::vec3(-12.0f, 0.0f, 12.0f), 90.0f);
-    m_vehicles.emplace_back(VehicleType::Van, glm::vec3(18.0f, 0.0f, -14.0f), 180.0f);
+    // player
+    auto player = std::make_unique<Player>();
+    player->position = glm::vec3(0.0f, 0.0f, 0.0f);
+    m_player = player.get();
+    m_actors.push_back(std::move(player));
+    m_controlled = m_player;
 
-    m_player.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    // parked cars
+    auto addVehicle = [this](VehicleType type, const glm::vec3& pos, float yaw) {
+        auto vehicle = std::make_unique<Vehicle>(type, pos, yaw);
+        m_vehicles.push_back(vehicle.get());
+        m_actors.push_back(std::move(vehicle));
+    };
+    addVehicle(VehicleType::Taxi, glm::vec3(8.0f, 0.0f, 6.0f), 0.0f);
+    addVehicle(VehicleType::Sedan, glm::vec3(-12.0f, 0.0f, 12.0f), 90.0f);
+    addVehicle(VehicleType::Van, glm::vec3(18.0f, 0.0f, -14.0f), 180.0f);
 
     // debug UI: panels are registered here, once, by whatever owns the data
     // they show. Adding a new panel elsewhere never touches this file.
@@ -95,10 +95,10 @@ bool Game::init()
 
     m_debugUI.addPanel("Debug", [this]() {
         ImGui::Text("FPS: %.0f (%.2f ms/frame)", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
-        if (m_drivingIndex >= 0)
-            ImGui::Text("Driving vehicle %d", m_drivingIndex);
+        if (Vehicle* driving = drivenVehicle())
+            ImGui::Text("Driving (speed %.1f)", driving->speed());
         else
-            ImGui::Text("Player pos: %.1f, %.1f, %.1f", m_player.position.x, m_player.position.y, m_player.position.z);
+            ImGui::Text("Player pos: %.1f, %.1f, %.1f", m_player->position.x, m_player->position.y, m_player->position.z);
         ImGui::Separator();
         ImGui::Checkbox("Show collision boxes", &m_showColliders);
         ImGui::Checkbox("Show ImGui demo window", &m_showImGuiDemo);
@@ -109,8 +109,8 @@ bool Game::init()
     });
 
     m_debugUI.addPanel("Player", [this]() {
-        ImGui::SliderFloat("Walk speed", &m_player.walkSpeed, 1.0f, 15.0f);
-        ImGui::SliderFloat("Run speed", &m_player.runSpeed, 1.0f, 25.0f);
+        ImGui::SliderFloat("Walk speed", &m_player->walkSpeed, 1.0f, 15.0f);
+        ImGui::SliderFloat("Run speed", &m_player->runSpeed, 1.0f, 25.0f);
     });
 
     m_debugUI.addPanel("Camera", [this]() {
@@ -122,19 +122,19 @@ bool Game::init()
     });
 
     m_debugUI.addPanel("Vehicle", [this]() {
-        if (m_drivingIndex < 0)
+        Vehicle* vehicle = drivenVehicle();
+        if (!vehicle)
         {
             ImGui::TextDisabled("Not driving. Walk up to a car and press F.");
             return;
         }
-        Vehicle& vehicle = m_vehicles[m_drivingIndex];
-        ImGui::Text("Speed: %.1f", vehicle.speed());
-        ImGui::SliderFloat("Acceleration", &vehicle.acceleration, 2.0f, 40.0f);
-        ImGui::SliderFloat("Brake decel.", &vehicle.brakeDeceleration, 2.0f, 40.0f);
-        ImGui::SliderFloat("Friction", &vehicle.friction, 0.0f, 20.0f);
-        ImGui::SliderFloat("Max speed", &vehicle.maxSpeed, 5.0f, 40.0f);
-        ImGui::SliderFloat("Max reverse speed", &vehicle.maxReverseSpeed, 2.0f, 20.0f);
-        ImGui::SliderFloat("Turn rate (deg/s)", &vehicle.turnRateDeg, 20.0f, 180.0f);
+        ImGui::Text("Speed: %.1f", vehicle->speed());
+        ImGui::SliderFloat("Acceleration", &vehicle->acceleration, 2.0f, 40.0f);
+        ImGui::SliderFloat("Brake decel.", &vehicle->brakeDeceleration, 2.0f, 40.0f);
+        ImGui::SliderFloat("Friction", &vehicle->friction, 0.0f, 20.0f);
+        ImGui::SliderFloat("Max speed", &vehicle->maxSpeed, 5.0f, 40.0f);
+        ImGui::SliderFloat("Max reverse speed", &vehicle->maxReverseSpeed, 2.0f, 20.0f);
+        ImGui::SliderFloat("Turn rate (deg/s)", &vehicle->turnRateDeg, 20.0f, 180.0f);
     });
 
     return true;
@@ -186,14 +186,72 @@ int Game::run()
             accumulator -= SIM_DT;
         }
 
-        glm::vec3 followTarget = m_drivingIndex >= 0
-            ? m_vehicles[m_drivingIndex].position() + glm::vec3(0.0f, 1.2f, 0.0f)
-            : m_player.position + glm::vec3(0.0f, 1.5f, 0.0f);
+        Vehicle* driving = drivenVehicle();
+        glm::vec3 followTarget = driving
+            ? driving->position() + glm::vec3(0.0f, 1.2f, 0.0f)
+            : m_player->position + glm::vec3(0.0f, 1.5f, 0.0f);
         m_camera.follow(followTarget);
         render();
         m_input.endFrame();
     }
     return 0;
+}
+
+void Game::enterOrExitVehicle()
+{
+    if (Vehicle* current = drivenVehicle())
+    {
+        // exit: step out to the vehicle's right side, facing the same way it is
+        glm::vec3 right = glm::normalize(glm::cross(current->forward(), glm::vec3(0.0f, 1.0f, 0.0f)));
+        m_player->position = current->position() + right * 2.2f;
+        m_player->yaw = current->yaw();
+        m_controlled = m_player;
+        return;
+    }
+
+    // enter: nearest vehicle within range
+    const float ENTER_RANGE = 3.5f;
+    Vehicle* nearest = nullptr;
+    float nearestDist = ENTER_RANGE;
+    for (Vehicle* vehicle : m_vehicles)
+    {
+        float dist = glm::length(vehicle->position() - m_player->position);
+        if (dist < nearestDist)
+        {
+            nearestDist = dist;
+            nearest = vehicle;
+        }
+    }
+    if (nearest)
+        m_controlled = nearest;
+}
+
+std::function<bool(const AABB&)> Game::collisionPredicateFor(const Actor* self) const
+{
+    return [this, self](const AABB& box) {
+        if (m_world.collides(box))
+            return true;
+        for (const auto& actor : m_actors)
+        {
+            Actor* other = actor.get();
+            if (other == self)
+                continue;
+            // the player isn't a physical obstacle while riding inside a vehicle
+            if (other == static_cast<Actor*>(m_player) && m_controlled != static_cast<Actor*>(m_player))
+                continue;
+            if (other->aabb().intersects(box))
+                return true;
+        }
+        return false;
+    };
+}
+
+Vehicle* Game::drivenVehicle() const
+{
+    if (m_controlled == nullptr || m_controlled == static_cast<Actor*>(m_player))
+        return nullptr;
+    // m_controlled is always either m_player or one of m_vehicles, so this is safe
+    return static_cast<Vehicle*>(m_controlled);
 }
 
 void Game::update(float dt)
@@ -203,64 +261,11 @@ void Game::update(float dt)
     if (m_debugUI.visible())
         return;
 
-    if (m_drivingIndex >= 0)
+    for (auto& actor : m_actors)
     {
-        // a driving vehicle stops for world geometry and every other vehicle,
-        // but obviously not for itself
-        int drivingIndex = m_drivingIndex;
-        auto collidesForVehicle = [this, drivingIndex](const AABB& box) {
-            if (m_world.collides(box))
-                return true;
-            for (size_t i = 0; i < m_vehicles.size(); ++i)
-                if (static_cast<int>(i) != drivingIndex && m_vehicles[i].aabb().intersects(box))
-                    return true;
-            return false;
-        };
-        m_vehicles[m_drivingIndex].updateDriving(m_input, dt, collidesForVehicle);
+        ActorContext ctx{ m_input, m_camera, actor.get() == m_controlled, collisionPredicateFor(actor.get()) };
+        actor->update(ctx, dt);
     }
-    else
-    {
-        // on foot: stop for world geometry and every parked/occupied vehicle
-        auto collidesForPlayer = [this](const AABB& box) {
-            if (m_world.collides(box))
-                return true;
-            for (const Vehicle& vehicle : m_vehicles)
-                if (vehicle.aabb().intersects(box))
-                    return true;
-            return false;
-        };
-        m_player.update(m_input, m_camera, dt, collidesForPlayer);
-    }
-}
-
-void Game::enterOrExitVehicle()
-{
-    if (m_drivingIndex >= 0)
-    {
-        // exit: step out to the vehicle's right side, facing the same way it is
-        const Vehicle& vehicle = m_vehicles[m_drivingIndex];
-        glm::vec3 right = glm::normalize(glm::cross(vehicle.forward(), glm::vec3(0.0f, 1.0f, 0.0f)));
-        m_player.position = vehicle.position() + right * 2.2f;
-        m_player.yaw = vehicle.yaw();
-        m_drivingIndex = -1;
-        return;
-    }
-
-    // enter: nearest vehicle within range
-    const float ENTER_RANGE = 3.5f;
-    int nearest = -1;
-    float nearestDist = ENTER_RANGE;
-    for (size_t i = 0; i < m_vehicles.size(); ++i)
-    {
-        float dist = glm::length(m_vehicles[i].position() - m_player.position);
-        if (dist < nearestDist)
-        {
-            nearestDist = dist;
-            nearest = static_cast<int>(i);
-        }
-    }
-    if (nearest >= 0)
-        m_drivingIndex = nearest;
 }
 
 void Game::render()
@@ -278,41 +283,26 @@ void Game::render()
 
     // ground
     glm::vec2 ground = m_world.groundSize();
-    m_renderer->draw(*m_groundMesh, boxMatrix({ 0.0f, 0.0f, 0.0f }, { ground.x, 1.0f, ground.y }),
+    m_renderer->draw(*m_groundMesh, Mesh::boxMatrix({ 0.0f, 0.0f, 0.0f }, { ground.x, 1.0f, ground.y }),
                      glm::vec3(1.0f), m_groundTexture.get());
 
     // buildings and walls
     for (const StaticBox& box : m_world.boxes())
-        m_renderer->draw(*m_cubeMesh, boxMatrix(box.center, box.size), box.color);
+        m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(box.center, box.size), box.color);
 
-    // player (hidden while driving - riding inside the vehicle instead)
-    if (m_drivingIndex < 0)
-    {
-        glm::vec3 playerCenter = m_player.position + glm::vec3(0.0f, m_player.size.y * 0.5f, 0.0f);
-        m_renderer->draw(*m_cubeMesh, boxMatrix(playerCenter, m_player.size, m_player.yaw),
-                         glm::vec3(0.85f, 0.30f, 0.20f));
-    }
+    // every actor draws itself; Player no-ops while riding in a vehicle
+    for (const auto& actor : m_actors)
+        actor->render(*m_renderer, *m_cubeMesh, actor.get() == m_controlled);
 
-    // vehicles: each part is the shared cube, transformed into car space
-    for (const Vehicle& vehicle : m_vehicles)
-    {
-        glm::mat4 carMatrix = glm::translate(glm::mat4(1.0f), vehicle.position());
-        carMatrix = glm::rotate(carMatrix, glm::radians(vehicle.yaw()), glm::vec3(0.0f, 1.0f, 0.0f));
-        for (const VehiclePart& part : vehicle.parts())
-        {
-            glm::mat4 model = glm::scale(glm::translate(carMatrix, part.offset), part.size);
-            m_renderer->draw(*m_cubeMesh, model, part.color);
-        }
-    }
-
-    // collision debug view: every AABB actually used by World::collides(),
-    // drawn as a wireframe so it can be checked against the visible geometry
+    // collision debug view: every AABB actually used by the collision
+    // predicates, drawn as a wireframe so it can be checked against the
+    // visible geometry
     if (m_showColliders)
     {
         auto drawAABBWire = [this](const AABB& box, const glm::vec3& color) {
             glm::vec3 center = (box.min + box.max) * 0.5f;
             glm::vec3 size = box.max - box.min;
-            m_renderer->draw(*m_cubeMesh, boxMatrix(center, size), color);
+            m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(center, size), color);
         };
 
         glDisable(GL_CULL_FACE);
@@ -320,12 +310,15 @@ void Game::render()
 
         for (const StaticBox& box : m_world.boxes())
             drawAABBWire(AABB::fromCenterHalf(box.center, box.size * 0.5f), glm::vec3(0.1f, 1.0f, 0.2f));
-        if (m_drivingIndex < 0)
-            drawAABBWire(m_player.aabb(), glm::vec3(1.0f, 0.9f, 0.1f));
-        for (size_t i = 0; i < m_vehicles.size(); ++i)
+
+        for (const auto& actor : m_actors)
         {
-            glm::vec3 color = static_cast<int>(i) == m_drivingIndex ? glm::vec3(1.0f, 0.3f, 0.9f) : glm::vec3(0.2f, 0.6f, 1.0f);
-            drawAABBWire(m_vehicles[i].aabb(), color);
+            // the player isn't a physical presence while riding, so its
+            // stale on-foot box would be misleading here
+            if (actor.get() == static_cast<Actor*>(m_player) && m_controlled != static_cast<Actor*>(m_player))
+                continue;
+            glm::vec3 color = actor.get() == m_controlled ? glm::vec3(1.0f, 0.9f, 0.1f) : glm::vec3(0.2f, 0.6f, 1.0f);
+            drawAABBWire(actor->aabb(), color);
         }
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

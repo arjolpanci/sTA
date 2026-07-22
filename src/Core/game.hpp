@@ -1,6 +1,7 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -8,6 +9,7 @@
 #include "Core/debug_ui.hpp"
 #include "Rendering/camera.hpp"
 #include "Game/world.hpp"
+#include "Game/actor.hpp"
 #include "Game/player.hpp"
 #include "Game/vehicle.hpp"
 
@@ -35,14 +37,23 @@ private:
     void render();
     void enterOrExitVehicle();
 
+    // world geometry + every other actor, from self's point of view -
+    // built once per actor per frame so Player/Vehicle never need to know
+    // about World or each other
+    std::function<bool(const AABB&)> collisionPredicateFor(const Actor* self) const;
+    Vehicle* drivenVehicle() const; // non-null only while m_controlled is a vehicle
+
     GLFWwindow* m_window = nullptr;
     Input m_input;
     DebugUI m_debugUI;
     Camera m_camera;
     World m_world;
-    Player m_player;
-    std::vector<Vehicle> m_vehicles;
-    int m_drivingIndex = -1; // -1 = on foot; otherwise index into m_vehicles being driven
+
+    std::vector<std::unique_ptr<Actor>> m_actors; // owns every actor
+    Player* m_player = nullptr;                   // non-owning, points into m_actors
+    std::vector<Vehicle*> m_vehicles;             // non-owning, point into m_actors
+    Actor* m_controlled = nullptr;                // whichever actor currently receives input
+
     bool m_showColliders = false;
     bool m_showImGuiDemo = false;
     bool m_debugUIReady = false; // guards DebugUI::shutdown() against a partial init() failure

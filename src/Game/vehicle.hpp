@@ -1,13 +1,10 @@
 #ifndef VEHICLE_H
 #define VEHICLE_H
 
-#include <functional>
 #include <vector>
 #include <glm/glm.hpp>
 
-#include "aabb.hpp"
-
-class Input;
+#include "actor.hpp"
 
 enum class VehicleType
 {
@@ -25,17 +22,17 @@ struct VehiclePart
     glm::vec3 color;
 };
 
-// A car built out of boxes. Parked until driven: Game calls updateDriving()
-// only for the vehicle the player is currently in, exactly like Player::update.
-class Vehicle
+// A car built out of boxes. Parked until controlled: Game hands the driven
+// vehicle ctx.controlled = true exactly like it does for Player, so a
+// vehicle simply does nothing while parked - no separate "is this vehicle
+// occupied" flag needed.
+class Vehicle : public Actor
 {
 public:
     Vehicle(VehicleType type, const glm::vec3& position, float yaw);
 
-    // collides(box) reports whether box overlaps something this vehicle
-    // should stop for (world geometry, other vehicles) - Game builds it so
-    // Vehicle never needs to know about World or the other vehicles directly
-    void updateDriving(const Input& input, float dt, const std::function<bool(const AABB&)>& collides);
+    void update(const ActorContext& ctx, float dt) override;
+    void render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const override;
 
     const std::vector<VehiclePart>& parts() const { return m_parts; }
     glm::vec3 position() const { return m_position; }
@@ -47,7 +44,7 @@ public:
     // only approximate a rotated car, so this is intentionally conservative
     // (larger than the visual model at in-between angles) until proper OBBs
     // are worth the trouble
-    AABB aabb() const;
+    AABB aabb() const override;
 
     // tunable driving parameters, exposed so a debug UI can adjust them live
     float acceleration = 14.0f;

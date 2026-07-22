@@ -2,6 +2,7 @@
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 Mesh::Mesh(const std::vector<float>& vertices)
 {
@@ -36,6 +37,14 @@ void Mesh::draw() const
     glBindVertexArray(m_VAO);
     glDrawArrays(GL_TRIANGLES, 0, m_vertexCount);
     glBindVertexArray(0);
+}
+
+glm::mat4 Mesh::boxMatrix(const glm::vec3& center, const glm::vec3& size, float yawDeg)
+{
+    glm::mat4 m = glm::translate(glm::mat4(1.0f), center);
+    if (yawDeg != 0.0f)
+        m = glm::rotate(m, glm::radians(yawDeg), glm::vec3(0.0f, 1.0f, 0.0f));
+    return glm::scale(m, size);
 }
 
 namespace

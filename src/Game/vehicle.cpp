@@ -3,7 +3,10 @@
 #include <algorithm>
 #include <cmath>
 
+#include "Rendering/mesh.hpp"      // pulls in glad.h; must precede GLFW/glfw3.h
+#include "Rendering/renderer.hpp"
 #include <GLFW/glfw3.h>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "Core/input.hpp"
 
@@ -64,11 +67,14 @@ glm::vec3 Vehicle::forward() const
     return glm::vec3(sin(r), 0.0f, cos(r));
 }
 
-void Vehicle::updateDriving(const Input& input, float dt, const std::function<bool(const AABB&)>& collides)
+void Vehicle::update(const ActorContext& ctx, float dt)
 {
+    if (!ctx.controlled)
+        return; // parked, or another actor has control
+
     float throttle = 0.0f;
-    if (input.keyDown(GLFW_KEY_W)) throttle = 1.0f;
-    else if (input.keyDown(GLFW_KEY_S)) throttle = -1.0f;
+    if (ctx.input.keyDown(GLFW_KEY_W)) throttle = 1.0f;
+    else if (ctx.input.keyDown(GLFW_KEY_S)) throttle = -1.0f;
 
     if (throttle > 0.0f)
         m_speed += acceleration * dt;
@@ -87,8 +93,8 @@ void Vehicle::updateDriving(const Input& input, float dt, const std::function<bo
     if (std::abs(m_speed) > 0.01f)
     {
         float steer = 0.0f;
-        if (input.keyDown(GLFW_KEY_A)) steer -= 1.0f;
-        if (input.keyDown(GLFW_KEY_D)) steer += 1.0f;
+        if (ctx.input.keyDown(GLFW_KEY_A)) steer -= 1.0f;
+        if (ctx.input.keyDown(GLFW_KEY_D)) steer += 1.0f;
 
         float speedFactor = std::clamp(std::abs(m_speed) / maxSpeed, 0.2f, 1.0f);
         float direction = m_speed >= 0.0f ? 1.0f : -1.0f;
@@ -100,17 +106,28 @@ void Vehicle::updateDriving(const Input& input, float dt, const std::function<bo
     // move one axis at a time and revert on hit, killing speed so the car
     // stops cleanly against a wall instead of clipping through it
     m_position.x += delta.x;
-    if (collides(aabb()))
+    if (ctx.collides(aabb()))
     {
         m_position.x -= delta.x;
         m_speed = 0.0f;
     }
 
     m_position.z += delta.z;
-    if (collides(aabb()))
+    if (ctx.collides(aabb()))
     {
         m_position.z -= delta.z;
         m_speed = 0.0f;
+    }
+}
+
+void Vehicle::render(Renderer& renderer, const Mesh& cubeMesh, bool /*controlled*/) const
+{
+    glm::mat4 carMatrix = glm::translate(glm::mat4(1.0f), m_position);
+    carMatrix = glm::rotate(carMatrix, glm::radians(m_yaw), glm::vec3(0.0f, 1.0f, 0.0f));
+    for (const VehiclePart& part : m_parts)
+    {
+        glm::mat4 model = glm::scale(glm::translate(carMatrix, part.offset), part.size);
+        renderer.draw(cubeMesh, model, part.color);
     }
 }
 

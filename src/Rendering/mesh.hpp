@@ -2,6 +2,7 @@
 #define MESH_H
 
 #include <vector>
+#include <glm/glm.hpp>
 
 // A GPU mesh with a fixed vertex layout: position(3) normal(3) uv(2).
 // Meshes are meant to be shared: create one cube and draw it many times
@@ -20,6 +21,10 @@ public:
     // vertex data factories
     static std::vector<float> cubeVertices();                 // unit cube centered at origin
     static std::vector<float> planeVertices(float uvTiling);  // unit XZ quad at y=0, facing up
+
+    // model matrix for a box: translate to center, spin around Y, stretch the
+    // unit cube/plane to size - shared by everything that draws a box
+    static glm::mat4 boxMatrix(const glm::vec3& center, const glm::vec3& size, float yawDeg = 0.0f);
 
 private:
     unsigned int m_VAO = 0, m_VBO = 0;
