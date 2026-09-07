@@ -22,14 +22,16 @@ public:
     void shutdown();
 
     void toggle();
+    void setVisible(bool visible);
+    void selectPanel(const std::string& title);
     bool visible() const { return m_visible; }
 
     // registers a panel; drawFn is called every visible frame, between
-    // ImGui::Begin(title) and ImGui::End()
+    // the content child of the selected sidebar page
     void addPanel(const std::string& title, std::function<void()> drawFn);
 
-    void beginFrame(); // builds this frame's UI (no-op while hidden)
-    void render();      // draws it on top of the 3D scene (no-op while hidden)
+    void beginFrame(); // starts the HUD frame and optional debug window
+    void render();      // draws the UI on top of the 3D scene
 
 private:
     struct Panel
@@ -40,6 +42,7 @@ private:
 
     GLFWwindow* m_window = nullptr;
     bool m_visible = false;
+    size_t m_selectedPanel = 0;
     std::vector<Panel> m_panels;
 };
 

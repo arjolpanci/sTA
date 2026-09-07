@@ -11,7 +11,7 @@ sTA (small Theft Auto) is a small GTA-inspired C++ / OpenGL sandbox. The engine 
 - Procedural window façades with scattered illuminated windows, atmospheric distance fog, and shadows that follow the player. Building materials are generated in the shader; no additional downloaded texture assets are required.
 - Animated box characters, 25 pedestrians on sidewalk patrols and eight AI traffic cars that brake into turns.
 - Three nearby parked vehicles: sedan, taxi and van. Stolen traffic vehicles become yours and stop following their old route.
-- A north-up minimap, speedometer, nearby-car prompt, and repeatable courier deliveries. Find a parked car, follow the teal marker, then stop inside it for 1.5 seconds to earn $150. Five destinations cycle around the city; money and progress last for the current session.
+- A north-up minimap, speedometer, nearby-car prompt, and repeatable courier deliveries. Missions start inactive. Open F1 → Missions and choose **Start courier run** or **Start and play**. Find a parked car, follow the teal marker, then stop inside it for 1.5 seconds to earn $150. Five destinations cycle around the city; money and progress last for the current session.
 
 ## Movement and collisions
 
@@ -52,7 +52,9 @@ Open the folder in Visual Studio with CMake integration and build the x64-Debug 
 | F1 | Pause simulation and open debug panels |
 | Esc | Quit |
 
-The debug panels include movement and vehicle tuning, shadow controls, a shadow-map preview and the actual oriented collision volumes.
+Debug builds open the debug UI automatically with simulation paused and the cursor free. Release and other build configurations start in free roam with the UI hidden. F1, the close button or **Resume game** returns to play.
+
+The debug window has a sidebar with Overview, Missions, Player, Camera, Rendering and Vehicle pages. Use Tab / arrows and Enter for keyboard navigation. Tools include movement/camera resets, safe on-foot quick travel, inspection and tuning of any vehicle, HUD visibility, shadow controls, and collision volumes. Starting a courier run resets its progress; stopping it removes the mission HUD and markers while retaining earnings in the Missions page until the next run.
 
 ## Verification
 
@@ -62,7 +64,7 @@ cd out/build/linux-debug
 ./sTA --smoke-test
 ```
 
-CTest runs without a display: it checks rotated collision clearance, ramp mesh winding, ramp ascent/descent, high-end blocking, jumping, curb stepping, fast wall collisions, two-minute traffic/pedestrian patrols and camera obstruction. The optional smoke test needs a working display/OpenGL context; it opens a hidden window, validates rendering and writes `smoke-city.ppm` and `smoke-ramp.ppm` in the working directory. Shader compilation/link errors fail the run.
+CTest runs without a display: it checks rotated collision clearance, ramp mesh winding, ramp ascent/descent, high-end blocking, jumping, curb stepping, fast wall collisions, two-minute traffic/pedestrian patrols and camera obstruction. The optional smoke test needs a working display/OpenGL context; it opens a hidden window, checks build-specific UI startup, cursor mode, mission start/stop/restart and rendering, and writes `smoke-debug.ppm`, `smoke-missions.ppm`, `smoke-city.ppm` and `smoke-ramp.ppm` in the working directory. Shader compilation/link errors fail the run.
 
 ## Dependencies
 

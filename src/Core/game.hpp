@@ -37,6 +37,8 @@ private:
     void update(float dt);
     void render();
     void renderHUD();
+    void startCourierRun();
+    void stopCourierRun();
     void enterOrExitVehicle();
 
     // world geometry + every other actor, from self's point of view -
@@ -59,6 +61,9 @@ private:
     Actor* m_controlled = nullptr;                // whichever actor currently receives input
 
     std::vector<glm::vec3> m_deliveryStops{{60, 0, 24}, {120, 0, -84}, {-60, 0, -108}, {-120, 0, 72}, {0, 0, 132}};
+    bool m_deliveryActive = false;
+    bool m_showHUD = true;
+    int m_debugVehicleIndex = 0;
     size_t m_deliveryIndex = 0;
     int m_deliveries = 0;
     int m_cash = 0;

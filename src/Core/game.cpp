@@ -151,7 +151,7 @@ bool Game::init()
     m_debugUI.init(m_window);
     m_debugUIReady = true;
 
-    m_debugUI.addPanel("Debug", [this]() {
+    m_debugUI.addPanel("Overview", [this]() {
         ImGui::Text("FPS: %.0f (%.2f ms/frame)", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
         if (Vehicle* driving = drivenVehicle())
             ImGui::Text("Driving (speed %.1f)", driving->speed());
@@ -160,20 +160,67 @@ bool Game::init()
             ImGui::Text("Player pos: %.1f, %.1f, %.1f", m_player->position.x, m_player->position.y, m_player->position.z);
             ImGui::Text("Grounded: %s", m_player->isGrounded() ? "yes" : "no");
         }
-        ImGui::Text("Actors: %zu", m_actors.size());
+        ImGui::Text("Actors: %zu  |  Vehicles: %zu", m_actors.size(), m_vehicles.size());
+        ImGui::Text("Courier mission: %s", m_deliveryActive ? "Active" : "Inactive (free roam)");
+        if (ImGui::Button("Open mission controls")) m_debugUI.selectPanel("Missions");
+        ImGui::TextWrapped("Use the sidebar to tune movement, inspect vehicles, or start a mission. Changes apply immediately; F1 resumes play.");
         ImGui::Separator();
         ImGui::Checkbox("Show collision boxes", &m_showColliders);
         ImGui::Checkbox("Show ImGui demo window", &m_showImGuiDemo);
         ImGui::Separator();
         ImGui::TextDisabled("F1 menu, F enter/exit vehicle");
-        if (m_showImGuiDemo)
-            ImGui::ShowDemoWindow(&m_showImGuiDemo);
+
+    });
+
+    m_debugUI.addPanel("Missions", [this]() {
+        ImGui::TextUnformatted("Courier run");
+        ImGui::TextWrapped("Drive any car to the teal destination and stop for 1.5 seconds to earn $150. Five stops repeat around the city.");
+        ImGui::Text("Status: %s", m_deliveryActive ? "Active" : "Inactive - free roam");
+        ImGui::Text("Run earnings: $%d  |  Deliveries: %d", m_cash, m_deliveries);
+        if (m_deliveryActive)
+        {
+            const auto& stop = m_deliveryStops[m_deliveryIndex];
+            ImGui::Text("Stop %zu / %zu  |  X %.0f, Z %.0f", m_deliveryIndex + 1, m_deliveryStops.size(), stop.x, stop.z);
+            ImGui::ProgressBar(m_deliveryHold / 1.5f, {-1, 0}, "Delivery hold");
+            if (ImGui::Button("Stop courier run")) stopCourierRun();
+            ImGui::TextWrapped("Stopping removes the objective and markers. Earnings remain here until you start a new run.");
+        }
+        else
+        {
+            if (ImGui::Button("Start courier run")) startCourierRun();
+            ImGui::SameLine();
+            if (ImGui::Button("Start and play")) { startCourierRun(); m_debugUI.setVisible(false); }
+            ImGui::TextWrapped("A new run starts at stop 1 with zero deliveries and earnings. Missions are always inactive at launch.");
+        }
     });
 
     m_debugUI.addPanel("Player", [this]() {
         ImGui::SliderFloat("Walk speed", &m_player->walkSpeed, 1.0f, 15.0f);
         ImGui::SliderFloat("Run speed", &m_player->runSpeed, 1.0f, 25.0f);
         ImGui::SliderFloat("Jump speed", &m_player->jumpSpeed, 3.0f, 20.0f);
+        if (ImGui::Button("Reset movement tuning"))
+        {
+            Player defaults;
+            m_player->walkSpeed = defaults.walkSpeed;
+            m_player->runSpeed = defaults.runSpeed;
+            m_player->jumpSpeed = defaults.jumpSpeed;
+        }
+        ImGui::Separator();
+        ImGui::TextUnformatted("Quick travel (on foot)");
+        if (drivenVehicle()) ImGui::TextWrapped("Exit your vehicle before using quick travel.");
+        else
+        {
+            auto travel = [this](const char* label, glm::vec3 destination) {
+                if (!ImGui::Button(label)) return;
+                glm::vec3 previous = m_player->position;
+                m_player->position = destination;
+                if (collisionPredicateFor(m_player)(m_player->collisionBox())) m_player->position = previous;
+                else m_player->resetMotion();
+            };
+            travel("City spawn", {0, 0, 0});
+            ImGui::SameLine(); travel("Ramp yard", {-98, 0.16f, 20});
+            ImGui::SameLine(); travel("Park", {30, 0.16f, 20});
+        }
     });
 
     m_debugUI.addPanel("Camera", [this]() {
@@ -182,9 +229,21 @@ bool Game::init()
         ImGui::SliderFloat("Max distance", &m_camera.maxDistance, 5.0f, 30.0f);
         ImGui::SliderFloat("Min pitch", &m_camera.minPitch, -30.0f, 0.0f);
         ImGui::SliderFloat("Max pitch", &m_camera.maxPitch, 30.0f, 89.0f);
+        m_camera.maxDistance = std::max(m_camera.maxDistance, m_camera.minDistance);
+        if (ImGui::Button("Reset camera tuning"))
+        {
+            Camera defaults;
+            m_camera.sensitivity = defaults.sensitivity;
+            m_camera.minDistance = defaults.minDistance;
+            m_camera.maxDistance = defaults.maxDistance;
+            m_camera.minPitch = defaults.minPitch;
+            m_camera.maxPitch = defaults.maxPitch;
+        }
     });
 
     m_debugUI.addPanel("Rendering", [this]() {
+        ImGui::Checkbox("Show game HUD and minimap", &m_showHUD);
+        ImGui::Checkbox("Show collision boxes", &m_showColliders);
         ImGui::Checkbox("Shadows enabled", &m_shadowsEnabled);
         ImGui::Checkbox("Show shadow map", &m_showShadowMapPreview);
         if (m_showShadowMapPreview)
@@ -192,13 +251,15 @@ bool Game::init()
     });
 
     m_debugUI.addPanel("Vehicle", [this]() {
-        Vehicle* vehicle = drivenVehicle();
-        if (!vehicle)
-        {
-            ImGui::TextDisabled("Not driving. Walk up to a car and press F.");
-            return;
-        }
-        ImGui::Text("Speed: %.1f", vehicle->speed());
+        ImGui::TextWrapped("Inspect and tune any vehicle, including parked cars and AI traffic.");
+        ImGui::SliderInt("Vehicle number", &m_debugVehicleIndex, 0, static_cast<int>(m_vehicles.size()) - 1);
+        if (Vehicle* driving = drivenVehicle())
+            if (ImGui::Button("Select driven vehicle"))
+                m_debugVehicleIndex = static_cast<int>(std::find(m_vehicles.begin(), m_vehicles.end(), driving) - m_vehicles.begin());
+        Vehicle* vehicle = m_vehicles[m_debugVehicleIndex];
+        const auto pos = vehicle->position();
+        ImGui::Text("Position: %.1f, %.1f, %.1f  |  Heading %.0f", pos.x, pos.y, pos.z, vehicle->yaw());
+        ImGui::Text("Speed: %.1f km/h%s", vehicle->speed() * 3.6f, vehicle == drivenVehicle() ? " (player driving)" : "");
         ImGui::SliderFloat("Acceleration", &vehicle->acceleration, 2.0f, 40.0f);
         ImGui::SliderFloat("Brake decel.", &vehicle->brakeDeceleration, 2.0f, 40.0f);
         ImGui::SliderFloat("Friction", &vehicle->friction, 0.0f, 20.0f);
@@ -218,6 +279,46 @@ int Game::run(bool smokeTest)
 
     if (m_smokeTest)
     {
+#ifdef STA_DEBUG_BUILD
+        if (!m_debugUI.visible()) throw std::runtime_error("Debug UI must open in Debug builds");
+#else
+        if (m_debugUI.visible()) throw std::runtime_error("Debug UI must start hidden outside Debug builds");
+#endif
+        if (glfwGetInputMode(m_window, GLFW_CURSOR) != (m_debugUI.visible() ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED))
+            throw std::runtime_error("Startup cursor mode does not match the debug UI");
+        if (m_deliveryActive) throw std::runtime_error("Missions must start inactive");
+        m_debugUI.setVisible(false);
+        auto testCar = std::make_unique<Vehicle>(VehicleType::Sedan, m_deliveryStops.front(), 0);
+        m_controlled = testCar.get();
+        m_vehicles.push_back(testCar.get());
+        m_actors.push_back(std::move(testCar));
+        auto simulate = [this]() { for (int i = 0; i < 110; ++i) update(1.0f / 60); };
+        simulate();
+        if (m_cash != 0 || m_deliveries != 0) throw std::runtime_error("Inactive mission awarded a delivery");
+        startCourierRun();
+        simulate();
+        if (m_cash != 150 || m_deliveries != 1) throw std::runtime_error("Triggered mission did not award a delivery");
+        stopCourierRun();
+        simulate();
+        if (m_deliveryActive || m_deliveryHold != 0 || m_noticeTime != 0 || m_cash != 150)
+            throw std::runtime_error("Stopping a mission did not clear transient state");
+        startCourierRun();
+        if (m_cash != 0 || m_deliveries != 0 || m_deliveryIndex != 0)
+            throw std::runtime_error("New courier run did not reset progress");
+        stopCourierRun();
+        m_controlled = m_player;
+        m_vehicles.pop_back();
+        m_actors.pop_back();
+        m_camera.follow(m_player->position + glm::vec3(0,1.5f,0));
+        m_debugUI.selectPanel("Overview");
+        render();
+        m_capturePath = "smoke-debug.ppm";
+        render();
+        m_debugUI.selectPanel("Missions");
+        m_capturePath = "smoke-missions.ppm";
+        render();
+        m_debugUI.setVisible(false);
+        m_capturePath = nullptr;
         m_camera.processScroll(-5);
         m_camera.follow(m_player->position + glm::vec3(0,1.5f,0));
         render(); // let ImGui settle its first-frame automatic sizing
@@ -229,7 +330,7 @@ int Game::run(bool smokeTest)
         m_capturePath = "smoke-ramp.ppm";
         render();
         if (glGetError() != GL_NO_ERROR) throw std::runtime_error("OpenGL smoke test failed");
-        std::cout << "Rendering smoke test passed: smoke-city.ppm, smoke-ramp.ppm\n";
+        std::cout << "Startup, mission lifecycle and rendering smoke tests passed: smoke-debug.ppm, smoke-missions.ppm, smoke-city.ppm, smoke-ramp.ppm\n";
         return 0;
     }
 
@@ -380,7 +481,7 @@ void Game::update(float dt)
         actor->update(ctx, dt);
     }
     Vehicle* driving = drivenVehicle();
-    if (driving && glm::length(driving->position() - m_deliveryStops[m_deliveryIndex]) < 4.5f && std::abs(driving->speed()) < 1.0f)
+    if (m_deliveryActive && driving && glm::length(driving->position() - m_deliveryStops[m_deliveryIndex]) < 4.5f && std::abs(driving->speed()) < 1.0f)
     {
         m_deliveryHold += dt;
         if (m_deliveryHold >= 1.5f)
@@ -463,6 +564,7 @@ void Game::render()
 
     // A bright curbside destination marker, drawn above the road surface.
     glm::vec3 destination = m_deliveryStops[m_deliveryIndex];
+    if (m_deliveryActive)
     for (int side : {-1, 1})
     {
         m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(destination + glm::vec3(side * 3.0f, 0.06f, 0), {0.18f, 0.08f, 6}), Material{{0.25f, 0.85f, 0.72f}});
@@ -515,7 +617,8 @@ void Game::render()
         glEnable(GL_CULL_FACE);
     }
 
-    renderHUD();
+    if (m_showImGuiDemo && m_debugUI.visible()) ImGui::ShowDemoWindow(&m_showImGuiDemo);
+    if (m_showHUD && !m_debugUI.visible()) renderHUD();
     m_debugUI.render(); // draws the UI on top of everything above
 
     if (m_capturePath)
@@ -540,31 +643,35 @@ void Game::renderHUD()
     constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
         ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings;
     ImGui::Begin("Street HUD", nullptr, flags);
-    ImGui::TextColored({0.38f, 0.9f, 0.78f, 1}, "SMALL THEFT AUTO / COURIER RUN");
-    ImGui::Text("$%d   |   Deliveries %d", m_cash, m_deliveries);
+    ImGui::TextColored({0.38f, 0.9f, 0.78f, 1}, m_deliveryActive ? "SMALL THEFT AUTO / COURIER RUN" : "SMALL THEFT AUTO / FREE ROAM");
+    if (m_deliveryActive) ImGui::Text("$%d   |   Deliveries %d", m_cash, m_deliveries);
     Vehicle* driving = drivenVehicle();
     glm::vec3 pos = m_controlled->collisionBox().center;
     glm::vec3 target = m_deliveryStops[m_deliveryIndex];
     ImGui::Separator();
     if (driving)
     {
-        ImGui::Text("%3.0f km/h   |   Destination %.0f m", std::abs(driving->speed()) * 3.6f,
-                    glm::length(glm::vec2(pos.x - target.x, pos.z - target.z)));
-        ImGui::TextUnformatted("Stop in the teal marker to deliver ($150).");
-        if (m_deliveryHold > 0) ImGui::ProgressBar(m_deliveryHold / 1.5f, {260, 8}, "");
+        if (m_deliveryActive)
+        {
+            ImGui::Text("%3.0f km/h   |   Destination %.0f m", std::abs(driving->speed()) * 3.6f,
+                        glm::length(glm::vec2(pos.x - target.x, pos.z - target.z)));
+            ImGui::TextUnformatted("Stop in the teal marker to deliver ($150).");
+            if (m_deliveryHold > 0) ImGui::ProgressBar(m_deliveryHold / 1.5f, {260, 8}, "");
+        }
+        else ImGui::Text("%3.0f km/h", std::abs(driving->speed()) * 3.6f);
         ImGui::TextDisabled("W/S gas / brake / reverse  |  A/D steer");
         ImGui::TextDisabled("F exit when stopped  |  Space handbrake");
     }
     else
     {
-        ImGui::TextUnformatted("Find a parked car. Drive to the teal destination.");
+        if (m_deliveryActive) ImGui::TextUnformatted("Find a parked car. Drive to the teal destination.");
         bool near = false;
         for (const Vehicle* vehicle : m_vehicles)
             near |= glm::length(vehicle->position() - m_player->position) < 3.5f && std::abs(vehicle->speed()) < 2;
         if (near) ImGui::TextColored({1, 0.85f, 0.4f, 1}, "F  Enter vehicle");
         ImGui::TextDisabled("WASD move  |  Shift run  |  Space jump");
     }
-    if (m_noticeTime > 0) ImGui::TextColored({0.4f, 1, 0.7f, 1}, "Delivery complete! +$150. Next stop marked.");
+    if (m_deliveryActive && m_noticeTime > 0) ImGui::TextColored({0.4f, 1, 0.7f, 1}, "Delivery complete! +$150. Next stop marked.");
     ImGui::TextDisabled("Mouse orbit  |  Scroll zoom  |  F1 debug");
     ImGui::End();
 
@@ -581,7 +688,7 @@ void Game::renderHUD()
     }
     for (const Vehicle* vehicle : m_vehicles)
         draw->AddCircleFilled(point(vehicle->position().x, vehicle->position().z), 1.8f, IM_COL32(239, 193, 85, 255));
-    draw->AddCircle(point(target.x, target.z), 5, IM_COL32(70, 245, 190, 255), 16, 2);
+    if (m_deliveryActive) draw->AddCircle(point(target.x, target.z), 5, IM_COL32(70, 245, 190, 255), 16, 2);
     float yaw = driving ? driving->yaw() : m_player->yaw;
     glm::vec2 f(std::sin(glm::radians(yaw)), std::cos(glm::radians(yaw)));
     glm::vec2 r(f.y, -f.x), c(pos.x, pos.z);
@@ -589,4 +696,21 @@ void Game::renderHUD()
     draw->AddTriangleFilled(point(tip.x, tip.y), point(left.x, left.y), point(right.x, right.y), IM_COL32(255, 255, 255, 255));
     draw->AddText({origin.x + 8, origin.y + 6}, IM_COL32(210, 225, 230, 255), "N ^   CITY");
     draw->AddText({origin.x + 6, origin.y + 204}, IM_COL32(220, 232, 236, 255), "Ramp yard: west of park");
+}
+
+void Game::startCourierRun()
+{
+    m_deliveryActive = true;
+    m_deliveryIndex = 0;
+    m_deliveries = 0;
+    m_cash = 0;
+    m_deliveryHold = 0;
+    m_noticeTime = 0;
+}
+
+void Game::stopCourierRun()
+{
+    m_deliveryActive = false;
+    m_deliveryHold = 0;
+    m_noticeTime = 0;
 }

@@ -48,7 +48,7 @@ target_include_directories(sTA PRIVATE "${INCLUDE_DIR}" "${INCLUDE_DIR}/imgui" "
 # IMGUI_IMPL_OPENGL_LOADER_CUSTOM tells it to skip that and use whatever GL
 # header is already visible instead - so we force-include glad (already
 # vendored and loaded by Game::init) into just that one source file
-target_compile_definitions(sTA PRIVATE IMGUI_IMPL_OPENGL_LOADER_CUSTOM)
+target_compile_definitions(sTA PRIVATE IMGUI_IMPL_OPENGL_LOADER_CUSTOM $<$<CONFIG:Debug>:STA_DEBUG_BUILD>)
 if(MSVC)
   set_source_files_properties(lib/imgui/backends/imgui_impl_opengl3.cpp PROPERTIES COMPILE_OPTIONS "/FI${INCLUDE_DIR}/glad/glad.h")
 else()
