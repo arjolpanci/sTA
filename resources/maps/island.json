@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "seed": 731942,
+  "grid": 513,
+  "spacing_metres": 4.0,
+  "extent_metres": 2048.0,
+  "sea_level": 0.0,
+  "height_range": [
+    -38.0,
+    175.21713562856306
+  ],
+  "buildings": 122,
+  "scene_records": 8024,
+  "districts": [
+    "Downtown",
+    "East gardens",
+    "Highland",
+    "West harbor"
+  ],
+  "sha256": {
+    "island.bin": "a9c214909387ed990bb443ab6581efda90bc930e0b8150cbe4e19cb20df0815c",
+    "island.scene": "e05d7196d0a1f240ddcfed645b5ea38ddceba5550d504bdd2947a5d9a65ea909",
+    "island-overview.png": "876224ae9f52f48c429e6f1dedbb82c9588a2f4247310e7be7d9fcaf1edefb0e"
+  }
+}

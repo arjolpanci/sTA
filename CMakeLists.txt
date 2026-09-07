@@ -15,7 +15,7 @@ add_executable(sTA
 	src/Rendering/texture.cpp
 	src/Rendering/renderer.cpp
 	src/Rendering/shadow_map.cpp
-	src/Game/world.cpp
+	src/Game/world.cpp src/Game/terrain.cpp
 	src/Game/player.cpp
 	src/Game/vehicle.cpp
 	src/Game/pedestrian.cpp
@@ -77,13 +77,13 @@ else()
 endif()
 include(CTest)
 if(BUILD_TESTING)
-  add_executable(sta_physics_tests tests/physics_tests.cpp src/Game/world.cpp src/Rendering/mesh.cpp lib/glad.c)
+  add_executable(sta_physics_tests tests/physics_tests.cpp src/Game/world.cpp src/Game/terrain.cpp src/Rendering/mesh.cpp lib/glad.c)
   target_include_directories(sta_physics_tests PRIVATE "${INCLUDE_DIR}" "${PROJ_ROOT}/src")
   add_test(NAME physics_regressions COMMAND sta_physics_tests)
 endif()
 
 if(BUILD_TESTING)
-  add_executable(sta_traffic_tests tests/traffic_tests.cpp src/Game/world.cpp src/Game/vehicle.cpp
+  add_executable(sta_traffic_tests tests/traffic_tests.cpp src/Game/world.cpp src/Game/terrain.cpp src/Game/vehicle.cpp
     src/Game/pedestrian.cpp src/Core/input.cpp src/Rendering/camera.cpp src/Rendering/mesh.cpp
     src/Rendering/renderer.cpp src/Rendering/shader.cpp src/Rendering/texture.cpp src/Rendering/shadow_map.cpp lib/glad.c)
   target_include_directories(sta_traffic_tests PRIVATE "${INCLUDE_DIR}" "${PROJ_ROOT}/src")
@@ -94,4 +94,11 @@ if(BUILD_TESTING)
     target_link_libraries(sta_traffic_tests PRIVATE glfw OpenGL::GL)
   endif()
   add_test(NAME traffic_patrols COMMAND sta_traffic_tests)
+endif()
+
+if(BUILD_TESTING)
+  add_executable(sta_terrain_tests tests/terrain_tests.cpp src/Game/terrain.cpp)
+  target_include_directories(sta_terrain_tests PRIVATE "${INCLUDE_DIR}" "${PROJ_ROOT}/src")
+  add_test(NAME baked_terrain COMMAND sta_terrain_tests)
+  set_tests_properties(physics_regressions traffic_patrols baked_terrain PROPERTIES WORKING_DIRECTORY "${PROJ_ROOT}")
 endif()
