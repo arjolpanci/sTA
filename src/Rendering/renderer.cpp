@@ -45,6 +45,7 @@ void Renderer::draw(const Mesh& mesh, const glm::mat4& model, const Material& ma
     m_shader.setMat4("model", model);
     m_shader.setVec3("color", material.albedo);
     m_shader.setFloat("shininess", material.shininess);
+    m_shader.setBool("facade", material.facade);
     m_shader.setBool("useTexture", material.albedoMap != nullptr);
     if (material.albedoMap)
         material.albedoMap->bind(0);

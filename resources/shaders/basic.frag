@@ -9,6 +9,7 @@ out vec4 FragColor;
 // material
 uniform vec3 color;
 uniform bool useTexture;
+uniform bool facade;
 uniform sampler2D tex;
 uniform float shininess; // 0 disables the specular highlight
 
@@ -54,6 +55,18 @@ void main()
         base *= texture(tex, vUV).rgb;
 
     vec3 normal = normalize(vNormal);
+    float windowGlow = 0.0;
+    if (facade && abs(normal.y) < 0.5)
+    {
+        vec2 wall = vec2(abs(normal.x) > 0.5 ? vFragPos.z : vFragPos.x, vFragPos.y);
+        vec2 cell = fract(wall / vec2(2.6, 3.2));
+        float window = step(0.20, cell.x) * step(cell.x, 0.80) * step(0.30, cell.y) * step(cell.y, 0.83) * step(2.8, wall.y);
+        float lit = step(0.77, fract(sin(dot(floor(wall / vec2(2.6, 3.2)), vec2(12.9898,78.233))) * 43758.5453));
+        vec3 glass = mix(vec3(0.12, 0.23, 0.29), vec3(0.78, 0.66, 0.38), lit);
+        base = mix(base, glass, window);
+        base *= 1.0 - 0.12 * step(0.96, cell.y);
+        windowGlow = window * lit * 0.13;
+    }
     float diffuse = max(dot(normal, lightDir), 0.0);
 
     float specular = 0.0;
@@ -71,5 +84,8 @@ void main()
     vec3 ambient = base * 0.35;
     vec3 direct = base * diffuse + vec3(specular);
     vec3 finalColor = ambient + (1.0 - shadow) * direct * 0.65;
+    finalColor += vec3(1.0, 0.79, 0.45) * windowGlow;
+    float fog = smoothstep(80.0, 290.0, length(viewPos - vFragPos));
+    finalColor = mix(finalColor, vec3(0.60, 0.73, 0.79), fog);
     FragColor = vec4(finalColor, 1.0);
 }

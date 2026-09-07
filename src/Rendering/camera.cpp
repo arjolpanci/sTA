@@ -42,3 +42,19 @@ glm::vec3 Camera::forwardXZ() const
 {
     return glm::normalize(glm::vec3(cos(glm::radians(m_yaw)), 0.0f, sin(glm::radians(m_yaw))));
 }
+
+void Camera::avoidObstacles(const std::function<bool(const glm::vec3&)>& blocked)
+{
+    glm::vec3 offset = m_position - m_target;
+    int steps = std::max(1, static_cast<int>(std::ceil(glm::length(offset) / 0.15f)));
+    glm::vec3 safe = m_target;
+    for (int i = 1; i <= steps; ++i)
+    {
+        glm::vec3 point = m_target + offset * (static_cast<float>(i) / steps);
+        if (blocked(point)) {
+            m_position = glm::length(safe - m_target) > 0.01f ? safe : m_target + glm::normalize(offset) * 0.02f;
+            return;
+        }
+        safe = point;
+    }
+}

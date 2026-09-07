@@ -30,20 +30,23 @@ public:
     Game();
     ~Game();
 
-    int run();
+    int run(bool smokeTest = false);
 
 private:
     bool init();
     void update(float dt);
     void render();
+    void renderHUD();
     void enterOrExitVehicle();
 
     // world geometry + every other actor, from self's point of view -
     // built once per actor per frame so Player/Vehicle never need to know
     // about World or each other
-    std::function<bool(const AABB&)> collisionPredicateFor(const Actor* self) const;
+    std::function<bool(const CollisionBox&)> collisionPredicateFor(const Actor* self) const;
     Vehicle* drivenVehicle() const; // non-null only while m_controlled is a vehicle
 
+    const char* m_capturePath = nullptr;
+    bool m_smokeTest = false;
     GLFWwindow* m_window = nullptr;
     Input m_input;
     DebugUI m_debugUI;
@@ -54,6 +57,13 @@ private:
     Player* m_player = nullptr;                   // non-owning, points into m_actors
     std::vector<Vehicle*> m_vehicles;             // non-owning, point into m_actors
     Actor* m_controlled = nullptr;                // whichever actor currently receives input
+
+    std::vector<glm::vec3> m_deliveryStops{{60, 0, 24}, {120, 0, -84}, {-60, 0, -108}, {-120, 0, 72}, {0, 0, 132}};
+    size_t m_deliveryIndex = 0;
+    int m_deliveries = 0;
+    int m_cash = 0;
+    float m_deliveryHold = 0.0f;
+    float m_noticeTime = 0.0f;
 
     bool m_showColliders = false;
     bool m_showImGuiDemo = false;

@@ -1,6 +1,7 @@
 #include "player.hpp"
 
 #include <cmath>
+#include "character_model.hpp"
 
 #include "Rendering/camera.hpp"  // pulls in glad.h; must precede GLFW/glfw3.h
 #include "Rendering/mesh.hpp"
@@ -32,15 +33,9 @@ void Player::update(const ActorContext& ctx, float dt)
         float speed = ctx.input.keyDown(GLFW_KEY_LEFT_SHIFT) ? runSpeed : walkSpeed;
         glm::vec3 delta = dir * speed * dt;
 
-        // move one axis at a time and revert on hit, so we slide along walls
-        // instead of sticking to them
-        position.x += delta.x;
-        if (ctx.collides(aabb()))
-            position.x -= delta.x;
-
-        position.z += delta.z;
-        if (ctx.collides(aabb()))
-            position.z -= delta.z;
+        glm::vec3 previous = position;
+        moveHorizontal(position, delta, m_vertical.grounded, [this]() { return collisionBox(); }, ctx);
+        m_gait += glm::length(position - previous) * 7.0f;
     }
 
     // vertical: gravity, jumping, and following the ground - flat, a ramp,
@@ -49,7 +44,7 @@ void Player::update(const ActorContext& ctx, float dt)
         m_vertical.jump(jumpSpeed);
 
     float groundY = ctx.groundHeightAt(position.x, position.z);
-    resolveVerticalMotion(m_vertical, position.y, dt, groundY, [&]() { return ctx.collides(aabb()); });
+    resolveVerticalMotion(m_vertical, position.y, dt, groundY, [&]() { return ctx.collides(collisionBox()); });
 }
 
 void Player::render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const
@@ -57,8 +52,7 @@ void Player::render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) c
     if (!controlled)
         return; // hidden while riding in a vehicle
 
-    renderer.draw(cubeMesh, Mesh::boxMatrix(position + glm::vec3(0.0f, size.y * 0.5f, 0.0f), size, yaw),
-                  Material{ glm::vec3(0.85f, 0.30f, 0.20f) });
+    drawCharacter(renderer, cubeMesh, position, size.y, yaw, glm::vec3(0.85f, 0.30f, 0.20f), m_gait, false);
 }
 
 void Player::renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const
@@ -66,11 +60,11 @@ void Player::renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool control
     if (!controlled)
         return;
 
-    renderer.drawShadow(cubeMesh, Mesh::boxMatrix(position + glm::vec3(0.0f, size.y * 0.5f, 0.0f), size, yaw));
+    drawCharacter(renderer, cubeMesh, position, size.y, yaw, glm::vec3(0.85f, 0.30f, 0.20f), m_gait, true);
 }
 
-AABB Player::aabb() const
+CollisionBox Player::collisionBox() const
 {
     glm::vec3 half = size * 0.5f;
-    return AABB::fromCenterHalf(position + glm::vec3(0.0f, half.y, 0.0f), half);
+    return CollisionBox::fromCenterHalf(position + glm::vec3(0.0f, half.y, 0.0f), half);
 }

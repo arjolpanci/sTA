@@ -14,6 +14,7 @@ struct Material
     glm::vec3 albedo{ 1.0f };            // base color, multiplied by albedoMap if set
     const Texture* albedoMap = nullptr;  // optional; null = flat albedo color only
     float shininess = 0.0f;              // Blinn-Phong specular exponent; 0 disables the highlight
+    bool facade = false;
 };
 
 #endif

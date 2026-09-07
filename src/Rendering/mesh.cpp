@@ -107,7 +107,7 @@ std::vector<float> Mesh::rampVertices()
 
     appendFace(v, { 0, -1, 0 }, lowLeft, lowRight, highBottomRight, highBottomLeft, uv);            // bottom
     appendFace(v, { 0, 0, 1 }, highBottomLeft, highBottomRight, highTopRight, highTopLeft, uv);     // tall-end wall
-    appendFace(v, glm::normalize(glm::vec3(0, 1, -1)), lowLeft, lowRight, highTopRight, highTopLeft, uv); // sloped top
+    appendFace(v, glm::normalize(glm::vec3(0, 1, -1)), lowRight, lowLeft, highTopLeft, highTopRight, uv); // sloped top
     appendTri(v, { -1, 0, 0 }, lowLeft, highBottomLeft, highTopLeft);   // left side
     appendTri(v, { 1, 0, 0 }, lowRight, highTopRight, highBottomRight); // right side
     return v;

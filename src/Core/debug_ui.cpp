@@ -40,12 +40,11 @@ void DebugUI::addPanel(const std::string& title, std::function<void()> drawFn)
 
 void DebugUI::beginFrame()
 {
-    if (!m_visible)
-        return;
-
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+
+    if (!m_visible) return;
 
     for (Panel& panel : m_panels)
     {
@@ -57,9 +56,6 @@ void DebugUI::beginFrame()
 
 void DebugUI::render()
 {
-    if (!m_visible)
-        return;
-
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }

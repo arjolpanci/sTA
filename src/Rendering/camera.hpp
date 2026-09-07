@@ -2,6 +2,7 @@
 #define CAMERA_H
 
 #include <glm/glm.hpp>
+#include <functional>
 
 // Third-person orbit camera (GTA-style): the mouse orbits around a target
 // point (the player), scroll zooms in/out.
@@ -11,6 +12,8 @@ public:
     void processMouse(float dx, float dy);   // dy > 0 = mouse moved up
     void processScroll(float dy);
     void follow(const glm::vec3& target);    // call once per frame with the point to orbit
+
+    void avoidObstacles(const std::function<bool(const glm::vec3&)>& blocked);
 
     glm::mat4 viewMatrix() const;
     glm::vec3 position() const { return m_position; }

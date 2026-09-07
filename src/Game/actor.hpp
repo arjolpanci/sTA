@@ -3,7 +3,7 @@
 
 #include <functional>
 
-#include "aabb.hpp"
+#include "collision_box.hpp"
 
 class Input;
 class Camera;
@@ -19,7 +19,8 @@ struct ActorContext
     const Input& input;
     const Camera& camera;
     bool controlled;                          // true only for the one actor currently receiving player input
-    std::function<bool(const AABB&)> collides; // world geometry + every other actor, precomputed for this actor
+    std::function<bool(const CollisionBox&)> collides; // world geometry + every other actor, precomputed for this actor
+    std::function<glm::vec3(const glm::vec3&)> surfaceNormal;
     std::function<float(float, float)> groundHeightAt; // ground height at (x, z): flat floor, a rooftop, or a ramp
 };
 
@@ -37,7 +38,7 @@ public:
     virtual void update(const ActorContext& ctx, float dt) = 0;
     virtual void render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const = 0;
     virtual void renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const = 0;
-    virtual AABB aabb() const = 0;
+    virtual CollisionBox collisionBox() const = 0;
 };
 
 #endif

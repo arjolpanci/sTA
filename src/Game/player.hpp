@@ -6,14 +6,16 @@
 #include "actor.hpp"
 #include "vertical_motion.hpp"
 
-// The playable character: a cube for now, replaced by a real model later.
+// The playable character, rendered as an articulated box silhouette.
 class Player : public Actor
 {
 public:
     void update(const ActorContext& ctx, float dt) override;
     void render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const override;
     void renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const override;
-    AABB aabb() const override;
+    CollisionBox collisionBox() const override;
+
+    void resetMotion() { m_vertical = VerticalMotion{}; }
 
     bool isGrounded() const { return m_vertical.grounded; }
 
@@ -27,6 +29,7 @@ public:
     float jumpSpeed = 9.0f;
 
 private:
+    float m_gait = 0.0f;
     VerticalMotion m_vertical;
 };
 

@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include <functional>
+#include <cmath>
+#include <glm/glm.hpp>
 
 // One physical constant, shared by every actor - gravity isn't something to
 // tune per object.
@@ -14,7 +16,8 @@ constexpr float TERMINAL_VELOCITY = -40.0f;
 // sliding down to match it. Comfortably bigger than any per-frame height
 // change a reasonable ramp produces, comfortably smaller than the shortest
 // building.
-constexpr float MAX_STEP_DOWN = 1.0f;
+constexpr float MAX_STEP_DOWN = 0.45f;
+constexpr float MAX_STEP_UP = 0.45f;
 
 struct VerticalMotion
 {
@@ -36,8 +39,8 @@ struct VerticalMotion
 
 // Resolves one frame of Y-axis motion for an actor at (positionY), given
 // groundY (World::groundHeightAt() at the actor's XZ - flat ground, a ramp,
-// or a rooftop) and collidesHere() (a full AABB test the caller provides,
-// checked only while rising, since groundY alone can't express bumping into
+// or a rooftop) and collidesHere() (a full CollisionBox test the caller provides,
+// used to resolve contacts, since groundY alone cannot express bumping into
 // a ceiling or landing on another actor).
 //
 // While grounded and the ground doesn't drop more than MAX_STEP_DOWN this
@@ -50,7 +53,7 @@ inline void resolveVerticalMotion(VerticalMotion& motion, float& positionY, floa
 {
     if (motion.grounded)
     {
-        if (positionY - groundY <= MAX_STEP_DOWN)
+        if (positionY - groundY <= MAX_STEP_DOWN && groundY - positionY <= MAX_STEP_UP)
         {
             positionY = groundY;
             motion.velocity = 0.0f;
@@ -59,11 +62,12 @@ inline void resolveVerticalMotion(VerticalMotion& motion, float& positionY, floa
         motion.grounded = false; // stepped off a real edge - fall for real
     }
 
+    float previousY = positionY;
     motion.velocity = std::max(motion.velocity - GRAVITY * dt, TERMINAL_VELOCITY);
     float deltaY = motion.velocity * dt;
     positionY += deltaY;
 
-    if (positionY <= groundY)
+    if (motion.velocity <= 0.0f && previousY >= groundY - 0.001f && positionY <= groundY)
     {
         positionY = groundY;
         motion.land();
@@ -80,6 +84,28 @@ inline void resolveVerticalMotion(VerticalMotion& motion, float& positionY, floa
     {
         motion.grounded = false;
     }
+}
+
+
+// Substeps prevent tunnelling at high driving speeds. Raise grounded actors
+// before the horizontal collision check so low curbs and ramp exits are usable.
+template<class Bounds, class Context>
+bool moveHorizontal(glm::vec3& position, const glm::vec3& delta, bool grounded,
+                    Bounds bounds, const Context& ctx)
+{
+    int steps = std::max(1, static_cast<int>(std::ceil(glm::length(delta) / 0.18f)));
+    bool hit = false;
+    for (int i = 0; i < steps; ++i)
+        for (int axis : {0, 2})
+        {
+            glm::vec3 previous = position;
+            position[axis] += delta[axis] / static_cast<float>(steps);
+            float floor = ctx.groundHeightAt(position.x, position.z);
+            if (grounded && floor > position.y && floor - position.y <= MAX_STEP_UP)
+                position.y = floor;
+            if (ctx.collides(bounds())) { position = previous; hit = true; }
+        }
+    return hit;
 }
 
 #endif

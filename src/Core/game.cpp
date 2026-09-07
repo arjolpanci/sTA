@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
+#include <fstream>
+#include <stdexcept>
 #include <utility>
 
 #include <glad/glad.h>
@@ -44,12 +46,17 @@ Game::~Game()
 
 bool Game::init()
 {
-    glfwInit();
+    if (!glfwInit())
+    {
+        std::cerr << "Failed to initialize GLFW\n";
+        return false;
+    }
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
+    if (m_smokeTest) glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     m_window = glfwCreateWindow(1600, 900, "small Theft Auto", NULL, NULL);
     if (!m_window)
     {
@@ -93,14 +100,13 @@ bool Game::init()
         m_vehicles.push_back(vehicle.get());
         m_actors.push_back(std::move(vehicle));
     };
-    addVehicle(VehicleType::Taxi, glm::vec3(8.0f, 0.0f, 6.0f), 0.0f);
-    addVehicle(VehicleType::Sedan, glm::vec3(-12.0f, 0.0f, 12.0f), 90.0f);
-    addVehicle(VehicleType::Van, glm::vec3(18.0f, 0.0f, -14.0f), 180.0f);
+    addVehicle(VehicleType::Taxi, glm::vec3(5.5f, 0.0f, 12.0f), 0.0f);
+    addVehicle(VehicleType::Sedan, glm::vec3(-12.0f, 0.0f, 5.5f), 90.0f);
+    addVehicle(VehicleType::Van, glm::vec3(5.5f, 0.0f, -18.0f), 180.0f);
 
     // traffic: cars that patrol a loop entirely on their own (see
     // Vehicle::update - same physics as player-driven, just AI steering
-    // instead of real input). Loop hugs the inside of the border walls,
-    // clear of every building in World.
+    // instead of real input). Routes follow the lanes around city blocks.
     auto addTraffic = [this](VehicleType type, const glm::vec3& start, float yaw,
                               std::vector<glm::vec3> waypoints, float cruiseSpeed) {
         auto vehicle = std::make_unique<Vehicle>(type, start, yaw);
@@ -109,14 +115,17 @@ bool Game::init()
         m_vehicles.push_back(vehicle.get());
         m_actors.push_back(std::move(vehicle));
     };
-    std::vector<glm::vec3> perimeterLoop = {
-        { -70.0f, 0.0f, -47.0f }, { 70.0f, 0.0f, -47.0f }, { 70.0f, 0.0f, 47.0f }, { -70.0f, 0.0f, 47.0f }
-    };
-    std::vector<glm::vec3> perimeterLoopReversed(perimeterLoop.rbegin(), perimeterLoop.rend());
-    addTraffic(VehicleType::Sedan, glm::vec3(-70.0f, 0.0f, -47.0f), 90.0f, perimeterLoop, 8.0f);
-    addTraffic(VehicleType::Van, glm::vec3(-70.0f, 0.0f, 47.0f), 90.0f, perimeterLoopReversed, 7.0f);
+    // Intersection targets leave room for the car footprint through turns.
+    for (int bx = -2; bx <= 1; ++bx)
+    for (int bz : {-1, 1})
+    {
+        float x = bx * 60.0f, z = bz * 60.0f;
+        auto route = World::trafficLoop(x, z);
+        addTraffic((bx + bz) % 2 == 0 ? VehicleType::Taxi : VehicleType::Sedan,
+                   route.front(), 90, route, 6.0f);
+    }
 
-    // pedestrians: simple wandering NPCs, patrolling short hand-placed routes
+    // pedestrians: wandering NPCs, patrolling sidewalk routes
     // clear of every building
     auto addPedestrian = [this](const glm::vec3& start, std::vector<glm::vec3> waypoints,
                                  const glm::vec3& color, float speed) {
@@ -124,15 +133,18 @@ bool Game::init()
         ped->walkSpeed = speed;
         m_actors.push_back(std::move(ped));
     };
-    addPedestrian(glm::vec3(-10.0f, 0.0f, -10.0f),
-                  { { -10.0f, 0.0f, -10.0f }, { 10.0f, 0.0f, -10.0f }, { 10.0f, 0.0f, 10.0f }, { -10.0f, 0.0f, 10.0f } },
-                  glm::vec3(0.75f, 0.60f, 0.50f), 2.0f);
-    addPedestrian(glm::vec3(4.0f, 0.0f, 2.0f),
-                  { { 4.0f, 0.0f, 2.0f }, { 14.0f, 0.0f, 10.0f } },
-                  glm::vec3(0.50f, 0.65f, 0.55f), 1.6f);
-    addPedestrian(glm::vec3(20.0f, 0.0f, -10.0f),
-                  { { 20.0f, 0.0f, -10.0f }, { 20.0f, 0.0f, 10.0f } },
-                  glm::vec3(0.60f, 0.50f, 0.70f), 1.8f);
+    for (int bx = -2; bx <= 2; ++bx)
+    for (int bz = -2; bz <= 2; ++bz)
+    {
+        float x = bx * 60.0f + 30, z = bz * 60.0f + 30;
+        std::vector<glm::vec3> route = {
+            {x - 19, 0.16f, z - 19}, {x + 19, 0.16f, z - 19},
+            {x + 19, 0.16f, z + 19}, {x - 19, 0.16f, z + 19}
+        };
+        std::rotate(route.begin(), route.begin() + (bx + bz + 4) % 4, route.end());
+        addPedestrian(route.front(), route,
+                      {0.35f + (bx + 2) * 0.11f, 0.35f + (bz + 2) * 0.09f, 0.58f}, 1.4f + (bx + 2) * 0.12f);
+    }
 
     // debug UI: panels are registered here, once, by whatever owns the data
     // they show. Adding a new panel elsewhere never touches this file.
@@ -198,10 +210,28 @@ bool Game::init()
     return true;
 }
 
-int Game::run()
+int Game::run(bool smokeTest)
 {
+    m_smokeTest = smokeTest;
     if (!init())
         return -1;
+
+    if (m_smokeTest)
+    {
+        m_camera.processScroll(-5);
+        m_camera.follow(m_player->position + glm::vec3(0,1.5f,0));
+        render(); // let ImGui settle its first-frame automatic sizing
+        m_capturePath = "smoke-city.ppm";
+        render();
+        m_player->position = {-98, 3.66f, 37};
+        m_camera.processMouse(-500, 150);
+        m_camera.follow(m_player->position + glm::vec3(0,1.5f,0));
+        m_capturePath = "smoke-ramp.ppm";
+        render();
+        if (glGetError() != GL_NO_ERROR) throw std::runtime_error("OpenGL smoke test failed");
+        std::cout << "Rendering smoke test passed: smoke-city.ppm, smoke-ramp.ppm\n";
+        return 0;
+    }
 
     // fixed-timestep loop: simulation always steps at SIM_RATE regardless of
     // how fast frames render, so physics stays deterministic
@@ -249,6 +279,9 @@ int Game::run()
             ? driving->position() + glm::vec3(0.0f, 1.2f, 0.0f)
             : m_player->position + glm::vec3(0.0f, 1.5f, 0.0f);
         m_camera.follow(followTarget);
+        m_camera.avoidObstacles([this](const glm::vec3& point) {
+            return point.y < 0.2f || m_world.collides(CollisionBox::fromCenterHalf(point, glm::vec3(0.2f)));
+        });
         render();
         m_input.endFrame();
     }
@@ -259,11 +292,22 @@ void Game::enterOrExitVehicle()
 {
     if (Vehicle* current = drivenVehicle())
     {
-        // exit: step out to the vehicle's right side, facing the same way it is
-        glm::vec3 right = glm::normalize(glm::cross(current->forward(), glm::vec3(0.0f, 1.0f, 0.0f)));
-        m_player->position = current->position() + right * 2.2f;
-        m_player->yaw = current->yaw();
-        m_controlled = m_player;
+        if (std::abs(current->speed()) > 2.0f) return;
+        glm::vec3 right(-current->forward().z, 0.0f, current->forward().x);
+        glm::vec3 oldPosition = m_player->position;
+        for (glm::vec3 offset : {right * 2.2f, -right * 2.2f, -current->forward() * 3.5f})
+        {
+            m_player->position = current->position() + offset;
+            float ground = m_world.groundHeightAt(m_player->position.x, m_player->position.z);
+            if (std::abs(ground - current->position().y) > MAX_STEP_DOWN) continue;
+            m_player->position.y = ground;
+            if (collisionPredicateFor(m_player)(m_player->collisionBox())) continue;
+            m_player->yaw = current->yaw();
+            m_player->resetMotion();
+            m_controlled = m_player;
+            return;
+        }
+        m_player->position = oldPosition;
         return;
     }
 
@@ -280,13 +324,16 @@ void Game::enterOrExitVehicle()
             nearest = vehicle;
         }
     }
-    if (nearest)
+    if (nearest && std::abs(nearest->speed()) < 2.0f)
+    {
+        nearest->takeControl();
         m_controlled = nearest;
+    }
 }
 
-std::function<bool(const AABB&)> Game::collisionPredicateFor(const Actor* self) const
+std::function<bool(const CollisionBox&)> Game::collisionPredicateFor(const Actor* self) const
 {
-    return [this, self](const AABB& box) {
+    return [this, self](const CollisionBox& box) {
         if (m_world.collides(box))
             return true;
         for (const auto& actor : m_actors)
@@ -297,7 +344,7 @@ std::function<bool(const AABB&)> Game::collisionPredicateFor(const Actor* self) 
             // the player isn't a physical obstacle while riding inside a vehicle
             if (other == static_cast<Actor*>(m_player) && m_controlled != static_cast<Actor*>(m_player))
                 continue;
-            if (other->aabb().intersects(box))
+            if (other->collisionBox().intersects(box))
                 return true;
         }
         return false;
@@ -319,24 +366,45 @@ void Game::update(float dt)
     if (m_debugUI.visible())
         return;
 
-    auto groundHeightAt = [this](float x, float z) { return m_world.groundHeightAt(x, z); };
 
+    m_noticeTime = std::max(0.0f, m_noticeTime - dt);
     for (auto& actor : m_actors)
     {
-        ActorContext ctx{ m_input, m_camera, actor.get() == m_controlled, collisionPredicateFor(actor.get()), groundHeightAt };
+        auto groundHeightAt = [this, &actor](float x, float z) {
+            auto box = actor->collisionBox();
+            box.center.x = x;
+            box.center.z = z;
+            return m_world.supportHeight(box, box.center.y - box.half.y + MAX_STEP_UP);
+        };
+        ActorContext ctx{ m_input, m_camera, actor.get() == m_controlled, collisionPredicateFor(actor.get()), [this](const glm::vec3& feet) { return m_world.surfaceNormal(feet); }, groundHeightAt };
         actor->update(ctx, dt);
     }
+    Vehicle* driving = drivenVehicle();
+    if (driving && glm::length(driving->position() - m_deliveryStops[m_deliveryIndex]) < 4.5f && std::abs(driving->speed()) < 1.0f)
+    {
+        m_deliveryHold += dt;
+        if (m_deliveryHold >= 1.5f)
+        {
+            ++m_deliveries;
+            m_cash += 150;
+            m_deliveryIndex = (m_deliveryIndex + 1) % m_deliveryStops.size();
+            m_deliveryHold = 0.0f;
+            m_noticeTime = 4.0f;
+        }
+    }
+    else m_deliveryHold = 0.0f;
+
 }
 
 void Game::render()
 {
-    m_debugUI.beginFrame(); // builds this frame's panels (no-op while hidden)
+    m_debugUI.beginFrame(); // HUD frame plus optional debug panels
 
     int width = 0, height = 0;
     glfwGetFramebufferSize(m_window, &width, &height);
     float aspect = height > 0 ? (float)width / (float)height : 1.0f;
 
-    glm::mat4 lightSpaceMatrix = ShadowMap::lightSpaceMatrix(m_sunDirection, glm::vec3(0.0f), 100.0f);
+    glm::mat4 lightSpaceMatrix = ShadowMap::lightSpaceMatrix(m_sunDirection, m_controlled->collisionBox().center, 95.0f);
 
     // shadow pass: depth only, from the sun's point of view. Runs every
     // frame regardless of m_shadowsEnabled, which only gates whether the
@@ -349,6 +417,9 @@ void Game::render()
     m_renderer->beginShadowPass(lightSpaceMatrix);
 
     for (const StaticBox& box : m_world.boxes())
+        m_renderer->drawShadow(*m_cubeMesh, Mesh::boxMatrix(box.center, box.size));
+
+    for (const StaticBox& box : m_world.decorations())
         m_renderer->drawShadow(*m_cubeMesh, Mesh::boxMatrix(box.center, box.size));
 
     for (const Ramp& ramp : m_world.ramps())
@@ -364,7 +435,7 @@ void Game::render()
     m_shadowMap->endCapture(width, height);
 
     // main pass
-    glClearColor(0.53f, 0.75f, 0.92f, 1.0f); // sky
+    glClearColor(0.60f, 0.73f, 0.79f, 1.0f); // sky
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     m_renderer->beginFrame(m_camera, aspect, lightSpaceMatrix, m_sunDirection, *m_shadowMap, m_shadowsEnabled);
@@ -376,6 +447,9 @@ void Game::render()
 
     // buildings and walls
     for (const StaticBox& box : m_world.boxes())
+        m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(box.center, box.size), Material{ box.color, nullptr, 0.0f, box.facade });
+
+    for (const StaticBox& box : m_world.decorations())
         m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(box.center, box.size), Material{ box.color });
 
     // ramps: the unit wedge rises along local +Z, flush with the ground at
@@ -387,37 +461,44 @@ void Game::render()
         m_renderer->draw(*m_rampMesh, Mesh::boxMatrix(center, size, ramp.alongX ? 90.0f : 0.0f), Material{ ramp.color });
     }
 
+    // A bright curbside destination marker, drawn above the road surface.
+    glm::vec3 destination = m_deliveryStops[m_deliveryIndex];
+    for (int side : {-1, 1})
+    {
+        m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(destination + glm::vec3(side * 3.0f, 0.06f, 0), {0.18f, 0.08f, 6}), Material{{0.25f, 0.85f, 0.72f}});
+        m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(destination + glm::vec3(0, 0.06f, side * 3.0f), {6, 0.08f, 0.18f}), Material{{0.25f, 0.85f, 0.72f}});
+    }
+
     // every actor draws itself; Player no-ops while riding in a vehicle
     for (const auto& actor : m_actors)
         actor->render(*m_renderer, *m_cubeMesh, actor.get() == m_controlled);
 
-    // collision debug view: every AABB actually used by the collision
+    // collision debug view: every CollisionBox actually used by the collision
     // predicates, drawn as a wireframe so it can be checked against the
     // visible geometry
     if (m_showColliders)
     {
-        auto drawAABBWire = [this](const AABB& box, const glm::vec3& color) {
-            glm::vec3 center = (box.min + box.max) * 0.5f;
-            glm::vec3 size = box.max - box.min;
-            m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(center, size), Material{ color });
+        auto drawCollisionBoxWire = [this](const CollisionBox& box, const glm::vec3& color) {
+            glm::vec3 center = box.center;
+            glm::vec3 size = box.half * 2.0f;
+            m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(center, size, box.yaw), Material{ color });
         };
 
         glDisable(GL_CULL_FACE);
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         for (const StaticBox& box : m_world.boxes())
-            drawAABBWire(AABB::fromCenterHalf(box.center, box.size * 0.5f), glm::vec3(0.1f, 1.0f, 0.2f));
+            drawCollisionBoxWire(CollisionBox::fromCenterHalf(box.center, box.size * 0.5f), glm::vec3(0.1f, 1.0f, 0.2f));
 
         // ramps: shown as their overall bounding volume (low to high end) -
-        // an approximation of the sloped shape, same spirit as the AABB
-        // approximation already used for rotated vehicles
+        // the actual ramp collision follows the wedge surface
         for (const Ramp& ramp : m_world.ramps())
         {
             glm::vec3 center(ramp.footprintCenter.x, (ramp.lowHeight + ramp.highHeight) * 0.5f, ramp.footprintCenter.z);
             glm::vec3 half(ramp.footprintSize.x * 0.5f, (ramp.highHeight - ramp.lowHeight) * 0.5f, ramp.footprintSize.y * 0.5f);
             if (ramp.alongX)
                 std::swap(half.x, half.z);
-            drawAABBWire(AABB::fromCenterHalf(center, half), glm::vec3(1.0f, 0.6f, 0.1f));
+            drawCollisionBoxWire(CollisionBox::fromCenterHalf(center, half), glm::vec3(1.0f, 0.6f, 0.1f));
         }
 
         for (const auto& actor : m_actors)
@@ -427,14 +508,85 @@ void Game::render()
             if (actor.get() == static_cast<Actor*>(m_player) && m_controlled != static_cast<Actor*>(m_player))
                 continue;
             glm::vec3 color = actor.get() == m_controlled ? glm::vec3(1.0f, 0.9f, 0.1f) : glm::vec3(0.2f, 0.6f, 1.0f);
-            drawAABBWire(actor->aabb(), color);
+            drawCollisionBoxWire(actor->collisionBox(), color);
         }
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glEnable(GL_CULL_FACE);
     }
 
+    renderHUD();
     m_debugUI.render(); // draws the UI on top of everything above
 
+    if (m_capturePath)
+    {
+        std::vector<unsigned char> pixels(static_cast<size_t>(width) * height * 3);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+        std::ofstream file(m_capturePath, std::ios::binary);
+        file << "P6\n" << width << " " << height << "\n255\n";
+        for (int row = height - 1; row >= 0; --row)
+            file.write(reinterpret_cast<const char*>(pixels.data() + static_cast<size_t>(row) * width * 3), width * 3);
+        if (!file) throw std::runtime_error("Could not write smoke screenshot");
+    }
     glfwSwapBuffers(m_window);
+}
+
+void Game::renderHUD()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::SetNextWindowPos({20, 20});
+    ImGui::SetNextWindowBgAlpha(0.85f);
+    constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings;
+    ImGui::Begin("Street HUD", nullptr, flags);
+    ImGui::TextColored({0.38f, 0.9f, 0.78f, 1}, "SMALL THEFT AUTO / COURIER RUN");
+    ImGui::Text("$%d   |   Deliveries %d", m_cash, m_deliveries);
+    Vehicle* driving = drivenVehicle();
+    glm::vec3 pos = m_controlled->collisionBox().center;
+    glm::vec3 target = m_deliveryStops[m_deliveryIndex];
+    ImGui::Separator();
+    if (driving)
+    {
+        ImGui::Text("%3.0f km/h   |   Destination %.0f m", std::abs(driving->speed()) * 3.6f,
+                    glm::length(glm::vec2(pos.x - target.x, pos.z - target.z)));
+        ImGui::TextUnformatted("Stop in the teal marker to deliver ($150).");
+        if (m_deliveryHold > 0) ImGui::ProgressBar(m_deliveryHold / 1.5f, {260, 8}, "");
+        ImGui::TextDisabled("W/S gas / brake / reverse  |  A/D steer");
+        ImGui::TextDisabled("F exit when stopped  |  Space handbrake");
+    }
+    else
+    {
+        ImGui::TextUnformatted("Find a parked car. Drive to the teal destination.");
+        bool near = false;
+        for (const Vehicle* vehicle : m_vehicles)
+            near |= glm::length(vehicle->position() - m_player->position) < 3.5f && std::abs(vehicle->speed()) < 2;
+        if (near) ImGui::TextColored({1, 0.85f, 0.4f, 1}, "F  Enter vehicle");
+        ImGui::TextDisabled("WASD move  |  Shift run  |  Space jump");
+    }
+    if (m_noticeTime > 0) ImGui::TextColored({0.4f, 1, 0.7f, 1}, "Delivery complete! +$150. Next stop marked.");
+    ImGui::TextDisabled("Mouse orbit  |  Scroll zoom  |  F1 debug");
+    ImGui::End();
+
+    // North-up map: world +Z points down, matching the street grid.
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    ImVec2 origin(io.DisplaySize.x - 220, 20);
+    auto point = [origin](float x, float z) { return ImVec2(origin.x + 100 + x * 0.53f, origin.y + 100 + z * 0.53f); };
+    draw->AddRectFilled(origin, {origin.x + 200, origin.y + 200}, IM_COL32(20, 30, 36, 235), 8);
+    for (const StaticBox& box : m_world.boxes())
+    {
+        if (!box.facade) continue;
+        draw->AddRectFilled(point(box.center.x - box.size.x / 2, box.center.z - box.size.z / 2),
+                            point(box.center.x + box.size.x / 2, box.center.z + box.size.z / 2), IM_COL32(88, 105, 111, 255));
+    }
+    for (const Vehicle* vehicle : m_vehicles)
+        draw->AddCircleFilled(point(vehicle->position().x, vehicle->position().z), 1.8f, IM_COL32(239, 193, 85, 255));
+    draw->AddCircle(point(target.x, target.z), 5, IM_COL32(70, 245, 190, 255), 16, 2);
+    float yaw = driving ? driving->yaw() : m_player->yaw;
+    glm::vec2 f(std::sin(glm::radians(yaw)), std::cos(glm::radians(yaw)));
+    glm::vec2 r(f.y, -f.x), c(pos.x, pos.z);
+    glm::vec2 tip = c + f * 9.0f, left = c - f * 5.0f - r * 5.0f, right = c - f * 5.0f + r * 5.0f;
+    draw->AddTriangleFilled(point(tip.x, tip.y), point(left.x, left.y), point(right.x, right.y), IM_COL32(255, 255, 255, 255));
+    draw->AddText({origin.x + 8, origin.y + 6}, IM_COL32(210, 225, 230, 255), "N ^   CITY");
+    draw->AddText({origin.x + 6, origin.y + 204}, IM_COL32(220, 232, 236, 255), "Ramp yard: west of park");
 }

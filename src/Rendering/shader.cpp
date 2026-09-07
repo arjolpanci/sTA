@@ -1,13 +1,5 @@
 #include "shader.hpp"
-
-static const char* shaderTypeToString(Shader::Type t) {
-    switch (t) {
-    case Shader::Type::Vertex:   return "Vertex";
-    case Shader::Type::Fragment: return "Fragment";
-    case Shader::Type::Program:  return "Program";
-    default:                     return "Unknown";
-    }
-}
+#include <stdexcept>
 
 Shader::Shader(const char* vertexPath, const char* fragmentPath)
 {
@@ -38,15 +30,13 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath)
     }
     catch (std::ifstream::failure e)
     {
-        std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+        throw std::runtime_error("Could not read shader files; run from the build directory");
     }
     const char* vShaderCode = vertexCode.c_str();
     const char* fShaderCode = fragmentCode.c_str();
 
 	// 2. compile shaders
 	unsigned int vertex, fragment;
-	int success;
-    char infoLog[512];
 
 	// vertex shader
 	vertex = glCreateShader(GL_VERTEX_SHADER);
@@ -132,7 +122,7 @@ void Shader::checkCompileErrors(unsigned int shader, Type type)
         if (!success)
         {
             glGetShaderInfoLog(shader, 1024, NULL, infoLog);
-            std::cout << "ERROR::SHADER_COMPILATION_ERROR of type: " << shaderTypeToString(type) << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
+            throw std::runtime_error(std::string("Shader compilation failed: ") + infoLog);
         }
     }
     else
@@ -141,7 +131,7 @@ void Shader::checkCompileErrors(unsigned int shader, Type type)
         if (!success)
         {
             glGetProgramInfoLog(shader, 1024, NULL, infoLog);
-            std::cout << "ERROR::PROGRAM_LINKING_ERROR of type: " << shaderTypeToString(type) << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
+            throw std::runtime_error(std::string("Shader linking failed: ") + infoLog);
         }
     }
 }

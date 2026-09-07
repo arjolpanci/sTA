@@ -1,6 +1,7 @@
 #include "pedestrian.hpp"
 
 #include <cmath>
+#include "character_model.hpp"
 
 #include "Rendering/mesh.hpp"
 #include "Rendering/renderer.hpp"
@@ -23,37 +24,31 @@ void Pedestrian::update(const ActorContext& ctx, float dt)
 
         glm::vec3 delta = dir * walkSpeed * dt;
 
-        // move one axis at a time and revert on hit, same as Player
-        m_position.x += delta.x;
-        if (ctx.collides(aabb()))
-            m_position.x -= delta.x;
-
-        m_position.z += delta.z;
-        if (ctx.collides(aabb()))
-            m_position.z -= delta.z;
+        glm::vec3 previous = m_position;
+        moveHorizontal(m_position, delta, m_vertical.grounded, [this]() { return collisionBox(); }, ctx);
+        m_gait += glm::length(m_position - previous) * 7.0f;
     }
 
     // vertical: gravity only - pedestrians don't jump, but do walk up/down
     // ramps and can fall off a rooftop like anything else
     float groundY = ctx.groundHeightAt(m_position.x, m_position.z);
-    resolveVerticalMotion(m_vertical, m_position.y, dt, groundY, [&]() { return ctx.collides(aabb()); });
+    resolveVerticalMotion(m_vertical, m_position.y, dt, groundY, [&]() { return ctx.collides(collisionBox()); });
 
     m_path.advanceIfReached(m_position, 1.0f);
 }
 
 void Pedestrian::render(Renderer& renderer, const Mesh& cubeMesh, bool /*controlled*/) const
 {
-    renderer.draw(cubeMesh, Mesh::boxMatrix(m_position + glm::vec3(0.0f, m_size.y * 0.5f, 0.0f), m_size, m_yaw),
-                  Material{ m_color });
+    drawCharacter(renderer, cubeMesh, m_position, m_size.y, m_yaw, m_color, m_gait, false);
 }
 
 void Pedestrian::renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool /*controlled*/) const
 {
-    renderer.drawShadow(cubeMesh, Mesh::boxMatrix(m_position + glm::vec3(0.0f, m_size.y * 0.5f, 0.0f), m_size, m_yaw));
+    drawCharacter(renderer, cubeMesh, m_position, m_size.y, m_yaw, m_color, m_gait, true);
 }
 
-AABB Pedestrian::aabb() const
+CollisionBox Pedestrian::collisionBox() const
 {
     glm::vec3 half = m_size * 0.5f;
-    return AABB::fromCenterHalf(m_position + glm::vec3(0.0f, half.y, 0.0f), half);
+    return CollisionBox::fromCenterHalf(m_position + glm::vec3(0.0f, half.y, 0.0f), half);
 }
