@@ -11,6 +11,7 @@ public:
     Texture& operator=(const Texture&) = delete;
 
     void bind(int unit) const;
+    unsigned int id() const { return m_ID; }
 
 private:
     unsigned int m_ID = 0;

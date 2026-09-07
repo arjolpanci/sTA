@@ -23,7 +23,7 @@ def smooth(a, b, x):
 
 
 def random_at(x, z):
-    n = (x * 374761393 + z * 668265263 + SEED * 1447) & 0xffffffff
+    n = (int(x) * 374761393 + int(z) * 668265263 + SEED * 1447) & 0xffffffff
     n = ((n ^ (n >> 13)) * 1274126177) & 0xffffffff
     return ((n ^ (n >> 16)) & 0xffff) / 32767.5 - 1
 
@@ -53,7 +53,9 @@ def natural_height(x, z):
     h = -38 * (1 - inland) + land * inland
     channel_x = -430 + 14 * math.sin(z / 110)
     channel = 1 - smooth(27, 55, abs(x - channel_x))
-    return h * (1 - channel) + min(h, -7) * channel
+    h = h * (1 - channel) + min(h, -7) * channel
+    # A gentler intertidal profile creates beaches and visible shallow water.
+    return h * (.55 + .45 * smooth(8,25,abs(h)))
 
 
 def main(output):
@@ -83,10 +85,10 @@ def main(output):
         pads.append((cx, cz, nx*30+10, nz*30+10, elevation))
         for i in range(nx+1):
             x = xmin + i*60
-            road([(x,elevation,zmin), (x,elevation,zmin+nz*60)])
+            road([(x,elevation,zmin), (x,elevation,zmin+nz*60)],9)
         for j in range(nz+1):
             z = zmin + j*60
-            road([(xmin,elevation,z), (xmin+nx*60,elevation,z)])
+            road([(xmin,elevation,z), (xmin+nx*60,elevation,z)],9)
         for ix in range(nx):
             for iz in range(nz):
                 x, z = xmin+ix*60+30, zmin+iz*60+30
@@ -144,16 +146,16 @@ def main(output):
 
     district(0,0,6,6,8,'Downtown')
     district(390,90,4,3,26,'East gardens',True)
-    district(90,-330,3,3,48,'Highland',True)
+    district(90,-330,3,3,32,'Highland',True)
     district(-610,90,3,3,8,'West harbor',True)
     # Connections are authored gentle grades; heightmap is cut/filled around them.
     road([(180,8,0),(230,14,0),(270,26,0)])
-    road([(0,8,-180),(0,20,-220),(0,34,-265),(0,48,-300)])
+    road([(0,8,-180),(0,20,-210),(0,32,-240)])
     road([(-180,8,120),(-300,10,120),(-378,12,120)])
-    road([(-482,12,120),(-520,8,120)])
+    road([(-482,12,120),(-492,12,120),(-520,8,120)])
     road([(-180,8,-120),(-260,13,-180),(-378,12,-180)])
     road([(-482,12,-180),(-550,14,-180),(-610,8,0)])
-    scenic = [(180,48,-330),(240,60,-350),(290,74,-410),(230,92,-480),(130,110,-500),
+    scenic = [(180,32,-330),(240,46,-350),(290,64,-410),(230,92,-480),(158,110,-500),(130,110,-500),(102,110,-497),
               (20,106,-490),(-90,91,-420),(-160,63,-330),(-220,36,-250),(-260,13,-180)]
     road(scenic,5)
     south = [(-180,8,120),(-220,10,240),(-150,13,340),(0,16,390),(150,18,390),
@@ -162,6 +164,9 @@ def main(output):
     # Bridges cross the tidal strait. Endpoints overlap road earthworks.
     for z in (120,-180):
         box(-430,10.8,z,108,1.2,15,(.31,.34,.36))
+        records.append(('L',7.5,2,-484,12,z,-376,12,z))
+        for x in (-464,-396): box(x,25.5,z,1.4,1,13,(.62,.35,.24))
+        for side in (-1,1): box(-430,25.5,z+side*6,68,.7,.5,(.62,.35,.24))
         for side in (-1,1):
             box(-430,12,z+side*7.2,108,1.1,.35,(.67,.69,.66))
             for x in (-464,-396):
@@ -175,12 +180,21 @@ def main(output):
     for x in (114,130,146): box(x,110,-518,3,.6,1,(.48,.29,.15))
     # Harbor piers extend into the channel; supports are visible in shallow water.
     for z in (60,180):
-        box(-510,4.8,z,58,1.2,12,(.46,.40,.30))
+        box(-510,6.8,z,58,1.2,12,(.46,.40,.30))
         for x in (-532,-508,-486):
             for side in (-1,1): box(x,-8,z+side*4,1,14,1,(.3,.29,.26))
     for type_,pos,yaw in [(1,(5.5,8,12),0),(0,(-12,8,5.5),90),(2,(5.5,8,-18),180),
-                          (0,(395.5,26,0),0),(1,(5.5,48,-330),0),(2,(-604.5,8,120),0)]:
+                          (0,(395.5,26,0),0),(1,(5.5,32,-330),0),(2,(-628,8,5.5),90)]:
         records.append(('V',type_,yaw,0,1,*pos))
+
+    arterial=[(180,8,0),(230,14,0),(270,26,0),(390,26,0),(390,26,180),(290,18,320),
+              (150,18,390),(0,16,390),(-150,13,340),(-220,10,240),(-180,8,120),(0,8,120),(0,8,0)]
+    bridges=[(-180,8,120),(-300,10,120),(-378,12,120),(-482,12,120),(-520,8,120),(-640,8,120),(-640,8,0),
+             (-610,8,0),(-550,14,-180),(-482,12,-180),(-378,12,-180),(-260,13,-180),(-180,8,-120)]
+    mountain=[(180,32,-330),*scenic[1:],(-180,8,-120),(0,8,-120),(0,8,-180),(0,20,-210),(0,32,-240),(0,32,-300),(180,32,-300)]
+    for route,yaw in ((arterial,90),(bridges,-90),(mountain,72)):
+        records.append(('V',0,yaw,7,len(route),*(v for p in route for v in p)))
+    for a,b,width in roads: records.append(('L',width,2,*a,*b))
 
     print('Sampling fractal heightmap and shaping terraces...', flush=True)
     heights = []
@@ -212,9 +226,11 @@ def main(output):
                 heights[k]=heights[k]*(1-influence)+(ay+t*(by-ay))*influence
                 masks[k]=max(masks[k],1-smooth(width-1,width+1,d))
     # Scatter natural vegetation away from roads, terrace edges and the shoreline.
-    for z in range(-620,621,19):
-        for x in range(-740,701,19):
-            if random_at(x,z) < -.05: continue
+    for cell_z in range(-620,621,19):
+        for cell_x in range(-740,701,19):
+            if random_at(cell_x,cell_z) < -.05: continue
+            x=cell_x+random_at(cell_x+31,cell_z)*7
+            z=cell_z+random_at(cell_x,cell_z+57)*7
             if any(abs(x-cx)<rx+25 and abs(z-cz)<rz+25 for cx,cz,rx,rz,y in pads): continue
             i,j=round((x+HALF)/STEP),round((z+HALF)/STEP); k=j*N+i
             h=heights[k]
@@ -223,6 +239,21 @@ def main(output):
             slope=max(abs(heights[k+1]-h),abs(heights[k+N]-h))/STEP
             if slope>.65: continue
             tree(i*STEP-HALF,h,j*STEP-HALF,1+random_at(z,x)*.25)
+    def baked_height(x,z):
+        gx,gz=(x+HALF)/STEP,(z+HALF)/STEP
+        ix,iz=min(N-2,int(gx)),min(N-2,int(gz))
+        u,v=gx-ix,gz-iz
+        a,b=heights[iz*N+ix],heights[iz*N+ix+1]
+        c,d=heights[(iz+1)*N+ix],heights[(iz+1)*N+ix+1]
+        return a+u*(b-a)+v*(c-a) if u+v<=1 else d+(1-u)*(c-d)+(1-v)*(b-d)
+    # Routes retain bridge/sidewalk elevations, but never start below a sampled slope.
+    for index,record in enumerate(records):
+        if record[0] not in ('V','P'): continue
+        values=list(record)
+        start=5 if record[0]=='V' else 6
+        for k in range(start,len(values),3):
+            values[k+1]=max(values[k+1],baked_height(values[k],values[k+2]))
+        records[index]=tuple(values)
     blob=b'STAISL1\n'+struct.pack('<Ifff',N,STEP,SEA,float(SEED))
     blob+=struct.pack('<%sf'%len(heights),*heights)+struct.pack('<%sf'%len(masks),*masks)
     (output/'island.bin').write_bytes(blob)
@@ -244,6 +275,8 @@ def main(output):
     (output/'island-overview.png').write_bytes(png)
     manifest={'version':1,'seed':SEED,'grid':N,'spacing_metres':STEP,'extent_metres':HALF*2,'sea_level':SEA,
               'height_range':[min(heights),max(heights)],'buildings':buildings,'scene_records':len(records),
+              'vehicles':sum(r[0]=='V' for r in records),'pedestrians':sum(r[0]=='P' for r in records),
+              'road_segments':sum(r[0]=='L' for r in records),
               'districts':['Downtown','East gardens','Highland','West harbor'],
               'sha256':{name:hashlib.sha256((output/name).read_bytes()).hexdigest() for name in ('island.bin','island.scene','island-overview.png')}}
     (output/'island.json').write_text(json.dumps(manifest,indent=2)+'\n')

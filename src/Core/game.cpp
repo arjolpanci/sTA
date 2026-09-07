@@ -13,6 +13,8 @@
 #include <imgui.h>
 
 #include "Rendering/mesh.hpp"
+#include "Rendering/island_renderer.hpp"
+#include "Rendering/scene_renderer.hpp"
 #include "Rendering/renderer.hpp"
 #include "Rendering/shadow_map.hpp"
 #include "Rendering/texture.hpp"
@@ -36,9 +38,10 @@ Game::~Game()
         m_debugUI.shutdown();
     m_renderer.reset();
     m_cubeMesh.reset();
-    m_groundMesh.reset();
+    m_islandRenderer.reset();
+    m_sceneRenderer.reset();
     m_rampMesh.reset();
-    m_groundTexture.reset();
+    m_mapTexture.reset();
     m_shadowMap.reset();
     if (m_window)
         glfwTerminate();
@@ -82,68 +85,30 @@ bool Game::init()
 
     m_renderer = std::make_unique<Renderer>();
     m_cubeMesh = std::make_unique<Mesh>(Mesh::cubeVertices());
-    m_groundMesh = std::make_unique<Mesh>(Mesh::planeVertices(40.0f));
+    m_islandRenderer = std::make_unique<IslandRenderer>(m_world.terrain());
+    m_sceneRenderer = std::make_unique<SceneRenderer>(m_world);
     m_rampMesh = std::make_unique<Mesh>(Mesh::rampVertices());
-    m_groundTexture = std::make_unique<Texture>("resources/textures/asphalt.jpg");
+    m_mapTexture = std::make_unique<Texture>("resources/maps/island-overview.png");
     m_shadowMap = std::make_unique<ShadowMap>();
 
     // player
     auto player = std::make_unique<Player>();
-    player->position = glm::vec3(0.0f, 0.0f, 0.0f);
+    player->position = glm::vec3(0.0f, 8.0f, 0.0f);
     m_player = player.get();
     m_actors.push_back(std::move(player));
     m_controlled = m_player;
 
-    // parked cars
-    auto addVehicle = [this](VehicleType type, const glm::vec3& pos, float yaw) {
-        auto vehicle = std::make_unique<Vehicle>(type, pos, yaw);
-        m_vehicles.push_back(vehicle.get());
-        m_actors.push_back(std::move(vehicle));
-    };
-    addVehicle(VehicleType::Taxi, glm::vec3(5.5f, 0.0f, 12.0f), 0.0f);
-    addVehicle(VehicleType::Sedan, glm::vec3(-12.0f, 0.0f, 5.5f), 90.0f);
-    addVehicle(VehicleType::Van, glm::vec3(5.5f, 0.0f, -18.0f), 180.0f);
-
-    // traffic: cars that patrol a loop entirely on their own (see
-    // Vehicle::update - same physics as player-driven, just AI steering
-    // instead of real input). Routes follow the lanes around city blocks.
-    auto addTraffic = [this](VehicleType type, const glm::vec3& start, float yaw,
-                              std::vector<glm::vec3> waypoints, float cruiseSpeed) {
-        auto vehicle = std::make_unique<Vehicle>(type, start, yaw);
-        vehicle->maxSpeed = cruiseSpeed;
-        vehicle->setPatrol(WaypointPath(std::move(waypoints)));
-        m_vehicles.push_back(vehicle.get());
-        m_actors.push_back(std::move(vehicle));
-    };
-    // Intersection targets leave room for the car footprint through turns.
-    for (int bx = -2; bx <= 1; ++bx)
-    for (int bz : {-1, 1})
+    // Actor placements and patrols are part of the saved map asset.
+    for (const auto& spawn : m_world.vehicleSpawns())
     {
-        float x = bx * 60.0f, z = bz * 60.0f;
-        auto route = World::trafficLoop(x, z);
-        addTraffic((bx + bz) % 2 == 0 ? VehicleType::Taxi : VehicleType::Sedan,
-                   route.front(), 90, route, 6.0f);
+        auto car=std::make_unique<Vehicle>(static_cast<VehicleType>(spawn.type), spawn.route.front(), spawn.yaw);
+        if (spawn.speed > 0) {car->maxSpeed=spawn.speed; car->setPatrol(WaypointPath(spawn.route));}
+        m_vehicles.push_back(car.get()); m_actors.push_back(std::move(car));
     }
-
-    // pedestrians: wandering NPCs, patrolling sidewalk routes
-    // clear of every building
-    auto addPedestrian = [this](const glm::vec3& start, std::vector<glm::vec3> waypoints,
-                                 const glm::vec3& color, float speed) {
-        auto ped = std::make_unique<Pedestrian>(start, WaypointPath(std::move(waypoints)), color);
-        ped->walkSpeed = speed;
-        m_actors.push_back(std::move(ped));
-    };
-    for (int bx = -2; bx <= 2; ++bx)
-    for (int bz = -2; bz <= 2; ++bz)
+    for (const auto& spawn : m_world.pedestrianSpawns())
     {
-        float x = bx * 60.0f + 30, z = bz * 60.0f + 30;
-        std::vector<glm::vec3> route = {
-            {x - 19, 0.16f, z - 19}, {x + 19, 0.16f, z - 19},
-            {x + 19, 0.16f, z + 19}, {x - 19, 0.16f, z + 19}
-        };
-        std::rotate(route.begin(), route.begin() + (bx + bz + 4) % 4, route.end());
-        addPedestrian(route.front(), route,
-                      {0.35f + (bx + 2) * 0.11f, 0.35f + (bz + 2) * 0.09f, 0.58f}, 1.4f + (bx + 2) * 0.12f);
+        auto ped=std::make_unique<Pedestrian>(spawn.route.front(), WaypointPath(spawn.route), spawn.color);
+        ped->walkSpeed=spawn.speed; m_actors.push_back(std::move(ped));
     }
 
     // debug UI: panels are registered here, once, by whatever owns the data
@@ -217,16 +182,21 @@ bool Game::init()
                 if (collisionPredicateFor(m_player)(m_player->collisionBox())) m_player->position = previous;
                 else m_player->resetMotion();
             };
-            travel("City spawn", {0, 0, 0});
-            ImGui::SameLine(); travel("Ramp yard", {-98, 0.16f, 20});
-            ImGui::SameLine(); travel("Park", {30, 0.16f, 20});
+            travel("City spawn", {0, 8, 0});
+            ImGui::SameLine(); travel("Ramp yard", {-98, 8.16f, 20});
+            ImGui::SameLine(); travel("Park", {30, 8.16f, 20});
+            travel("West bridge", {-480, 12, 120});
+            ImGui::SameLine(); travel("Highland", {0, 32, -330});
+            ImGui::SameLine(); travel("Mountain lookout", {130, 110, -500});
+            travel("East gardens", {390, 26, 0});
+            ImGui::SameLine(); travel("Beach", {0, m_world.groundHeightAt(0, 560), 560});
         }
     });
 
     m_debugUI.addPanel("Camera", [this]() {
         ImGui::SliderFloat("Sensitivity", &m_camera.sensitivity, 0.02f, 0.5f);
         ImGui::SliderFloat("Min distance", &m_camera.minDistance, 1.0f, 10.0f);
-        ImGui::SliderFloat("Max distance", &m_camera.maxDistance, 5.0f, 30.0f);
+        ImGui::SliderFloat("Max distance", &m_camera.maxDistance, 5.0f, 1200.0f, "%.0f m", ImGuiSliderFlags_Logarithmic);
         ImGui::SliderFloat("Min pitch", &m_camera.minPitch, -30.0f, 0.0f);
         ImGui::SliderFloat("Max pitch", &m_camera.maxPitch, 30.0f, 89.0f);
         m_camera.maxDistance = std::max(m_camera.maxDistance, m_camera.minDistance);
@@ -241,7 +211,28 @@ bool Game::init()
         }
     });
 
+    m_debugUI.addPanel("Island", [this]() {
+        const auto& terrain=m_world.terrain();
+        auto position=m_controlled->collisionBox().center;
+        ImGui::Text("Baked map: %.0f x %.0f m  |  Sea level %.0f m", terrain.extent(), terrain.extent(), terrain.seaLevel());
+        ImGui::Text("Terrain here: %.1f m  |  Roads: %zu", terrain.heightAt(position.x,position.z),m_world.roads().size());
+        ImGui::TextWrapped("Downtown in the center; West harbor across the bridges; East gardens on the eastern terrace; Highland and the lookout in the north. Quick travel is on the Player page.");
+        if (ImGui::Button("Aerial camera")) {
+            m_camera=Camera(); m_camera.maxDistance=1800;
+            m_camera.processScroll(-1200); m_camera.processMouse(0,400);
+            m_camera.follow(position);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Street camera")) {m_camera=Camera(); m_camera.follow(position);}
+        float size=std::min(420.0f,ImGui::GetContentRegionAvail().x);
+        ImGui::Image((ImTextureID)(intptr_t)m_mapTexture->id(),{size,size},{0,1},{1,0});
+        ImGui::TextWrapped("Saved asset, never regenerated during startup. Authoring command: python3 tools/build_island.py");
+    });
+
     m_debugUI.addPanel("Rendering", [this]() {
+        ImGui::TextUnformatted("Baked island: 2048 m / 513 x 513 samples");
+        ImGui::TextWrapped("The game loads resources/maps/island.bin and island.scene. Rebuild deliberately with tools/build_island.py; no terrain is generated at startup.");
+        ImGui::SliderFloat("Wave strength", &m_waveStrength, 0.0f, 2.0f);
         ImGui::Checkbox("Show game HUD and minimap", &m_showHUD);
         ImGui::Checkbox("Show collision boxes", &m_showColliders);
         ImGui::Checkbox("Shadows enabled", &m_shadowsEnabled);
@@ -306,7 +297,19 @@ int Game::run(bool smokeTest)
         if (m_cash != 0 || m_deliveries != 0 || m_deliveryIndex != 0)
             throw std::runtime_error("New courier run did not reset progress");
         stopCourierRun();
+        auto* recoveryCar=drivenVehicle();
+        recoveryCar->recover({0,-3,700});
+        simulate();
+        if (recoveryCar->position().y<0 || m_waterRecoveryNotice<=0)
+            throw std::runtime_error("Submerged vehicle recovery failed");
         m_controlled = m_player;
+        m_player->position={0,-3,700};
+        m_player->resetMotion();
+        simulate();
+        if (!m_player->isSwimming() || std::abs(m_player->position.y+.9f)>.01f)
+            throw std::runtime_error("Swimming buoyancy failed");
+        m_player->position={0,8,0}; m_player->resetMotion();
+        m_waterRecoveryNotice=0;
         m_vehicles.pop_back();
         m_actors.pop_back();
         m_camera.follow(m_player->position + glm::vec3(0,1.5f,0));
@@ -324,13 +327,35 @@ int Game::run(bool smokeTest)
         render(); // let ImGui settle its first-frame automatic sizing
         m_capturePath = "smoke-city.ppm";
         render();
-        m_player->position = {-98, 3.66f, 37};
+        m_player->position = {-98, 11.66f, 37};
         m_camera.processMouse(-500, 150);
         m_camera.follow(m_player->position + glm::vec3(0,1.5f,0));
         m_capturePath = "smoke-ramp.ppm";
         render();
+        m_camera = Camera();
+        m_camera.maxDistance=1800;
+        m_camera.processScroll(-1350);
+        m_camera.processMouse(250,400);
+        m_camera.follow({0,30,0});
+        m_capturePath="smoke-island.ppm";
+        render();
+        m_player->position={-480,12,120};
+        m_camera=Camera(); m_camera.maxDistance=150;
+        m_camera.processScroll(-65); m_camera.processMouse(600,150);
+        m_camera.follow({-430,12,120});
+        m_capturePath="smoke-bridge.ppm";
+        render();
+        m_player->position={0,m_world.groundHeightAt(0,560),560};
+        m_camera=Camera(); m_camera.maxDistance=150;
+        m_camera.processScroll(-25); m_camera.processMouse(0,100);
+        m_camera.follow({0,2,560});
+        m_capturePath="smoke-shore.ppm";
+        render();
+        m_worldTime+=2;
+        m_capturePath="smoke-shore-next.ppm";
+        render();
         if (glGetError() != GL_NO_ERROR) throw std::runtime_error("OpenGL smoke test failed");
-        std::cout << "Startup, mission lifecycle and rendering smoke tests passed: smoke-debug.ppm, smoke-missions.ppm, smoke-city.ppm, smoke-ramp.ppm\n";
+        std::cout << "Startup, mission lifecycle and rendering smoke tests passed: smoke-debug.ppm, smoke-missions.ppm, smoke-city.ppm, smoke-ramp.ppm, smoke-island.ppm, smoke-bridge.ppm, smoke-shore.ppm\n";
         return 0;
     }
 
@@ -381,7 +406,7 @@ int Game::run(bool smokeTest)
             : m_player->position + glm::vec3(0.0f, 1.5f, 0.0f);
         m_camera.follow(followTarget);
         m_camera.avoidObstacles([this](const glm::vec3& point) {
-            return point.y < 0.2f || m_world.collides(CollisionBox::fromCenterHalf(point, glm::vec3(0.2f)));
+            return point.y < m_world.terrain().seaLevel() + 0.2f || m_world.collides(CollisionBox::fromCenterHalf(point, glm::vec3(0.2f)));
         });
         render();
         m_input.endFrame();
@@ -468,6 +493,8 @@ void Game::update(float dt)
         return;
 
 
+    m_worldTime += dt;
+    m_waterRecoveryNotice = std::max(0.0f, m_waterRecoveryNotice - dt);
     m_noticeTime = std::max(0.0f, m_noticeTime - dt);
     for (auto& actor : m_actors)
     {
@@ -477,8 +504,21 @@ void Game::update(float dt)
             box.center.z = z;
             return m_world.supportHeight(box, box.center.y - box.half.y + MAX_STEP_UP);
         };
-        ActorContext ctx{ m_input, m_camera, actor.get() == m_controlled, collisionPredicateFor(actor.get()), [this](const glm::vec3& feet) { return m_world.surfaceNormal(feet); }, groundHeightAt };
+        ActorContext ctx{ m_input, m_camera, actor.get() == m_controlled, collisionPredicateFor(actor.get()), [this](const glm::vec3& feet) { return m_world.surfaceNormal(feet); }, groundHeightAt, m_world.terrain().seaLevel() };
         actor->update(ctx, dt);
+    }
+    for (Vehicle* car : m_vehicles)
+    {
+        if (car->position().y >= m_world.terrain().seaLevel()-1.2f) continue;
+        for (glm::vec3 offset : {glm::vec3(0), glm::vec3(0,0,6), glm::vec3(0,0,-6), glm::vec3(6,0,0), glm::vec3(-6,0,0)})
+        {
+            glm::vec3 candidate=car->spawnPosition()+offset;
+            auto box=car->collisionBox(); box.center=candidate+glm::vec3(0,box.half.y,0); box.yaw=car->spawnYaw();
+            if (collisionPredicateFor(car)(box)) continue;
+            car->recover(candidate);
+            if (car==drivenVehicle()) m_waterRecoveryNotice=5;
+            break;
+        }
     }
     Vehicle* driving = drivenVehicle();
     if (m_deliveryActive && driving && glm::length(driving->position() - m_deliveryStops[m_deliveryIndex]) < 4.5f && std::abs(driving->speed()) < 1.0f)
@@ -517,11 +557,8 @@ void Game::render()
     m_shadowMap->beginCapture();
     m_renderer->beginShadowPass(lightSpaceMatrix);
 
-    for (const StaticBox& box : m_world.boxes())
-        m_renderer->drawShadow(*m_cubeMesh, Mesh::boxMatrix(box.center, box.size));
-
-    for (const StaticBox& box : m_world.decorations())
-        m_renderer->drawShadow(*m_cubeMesh, Mesh::boxMatrix(box.center, box.size));
+    m_islandRenderer->drawShadow(*m_renderer, m_controlled->collisionBox().center);
+    m_sceneRenderer->drawShadow(*m_renderer, m_controlled->collisionBox().center);
 
     for (const Ramp& ramp : m_world.ramps())
     {
@@ -539,19 +576,9 @@ void Game::render()
     glClearColor(0.60f, 0.73f, 0.79f, 1.0f); // sky
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    m_islandRenderer->drawTerrain(m_camera, aspect, lightSpaceMatrix, m_sunDirection, *m_shadowMap, m_shadowsEnabled);
     m_renderer->beginFrame(m_camera, aspect, lightSpaceMatrix, m_sunDirection, *m_shadowMap, m_shadowsEnabled);
-
-    // ground
-    glm::vec2 ground = m_world.groundSize();
-    m_renderer->draw(*m_groundMesh, Mesh::boxMatrix({ 0.0f, 0.0f, 0.0f }, { ground.x, 1.0f, ground.y }),
-                     Material{ glm::vec3(1.0f), m_groundTexture.get() });
-
-    // buildings and walls
-    for (const StaticBox& box : m_world.boxes())
-        m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(box.center, box.size), Material{ box.color, nullptr, 0.0f, box.facade });
-
-    for (const StaticBox& box : m_world.decorations())
-        m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(box.center, box.size), Material{ box.color });
+    m_sceneRenderer->draw(*m_renderer, m_camera.position());
 
     // ramps: the unit wedge rises along local +Z, flush with the ground at
     // -Z - yaw re-orients that to whichever world axis the ramp climbs
@@ -575,11 +602,14 @@ void Game::render()
     for (const auto& actor : m_actors)
         actor->render(*m_renderer, *m_cubeMesh, actor.get() == m_controlled);
 
+    m_islandRenderer->drawWater(m_camera, aspect, m_sunDirection, m_worldTime, m_waveStrength);
+
     // collision debug view: every CollisionBox actually used by the collision
     // predicates, drawn as a wireframe so it can be checked against the
     // visible geometry
     if (m_showColliders)
     {
+        m_renderer->beginFrame(m_camera, aspect, lightSpaceMatrix, m_sunDirection, *m_shadowMap, m_shadowsEnabled);
         auto drawCollisionBoxWire = [this](const CollisionBox& box, const glm::vec3& color) {
             glm::vec3 center = box.center;
             glm::vec3 size = box.half * 2.0f;
@@ -590,7 +620,7 @@ void Game::render()
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         for (const StaticBox& box : m_world.boxes())
-            drawCollisionBoxWire(CollisionBox::fromCenterHalf(box.center, box.size * 0.5f), glm::vec3(0.1f, 1.0f, 0.2f));
+            drawCollisionBoxWire(CollisionBox::fromCenterHalf(box.center, box.size * 0.5f, box.yaw), glm::vec3(0.1f, 1.0f, 0.2f));
 
         // ramps: shown as their overall bounding volume (low to high end) -
         // the actual ramp collision follows the wedge surface
@@ -672,30 +702,38 @@ void Game::renderHUD()
         ImGui::TextDisabled("WASD move  |  Shift run  |  Space jump");
     }
     if (m_deliveryActive && m_noticeTime > 0) ImGui::TextColored({0.4f, 1, 0.7f, 1}, "Delivery complete! +$150. Next stop marked.");
+    if (m_player->isSwimming() && !driving) ImGui::TextUnformatted("Swimming - head toward the beach to leave the water.");
+    if (m_waterRecoveryNotice > 0) ImGui::TextUnformatted("Vehicle recovered from water to its starting street.");
     ImGui::TextDisabled("Mouse orbit  |  Scroll zoom  |  F1 debug");
     ImGui::End();
 
     // North-up map: world +Z points down, matching the street grid.
     ImDrawList* draw = ImGui::GetForegroundDrawList();
-    ImVec2 origin(io.DisplaySize.x - 220, 20);
-    auto point = [origin](float x, float z) { return ImVec2(origin.x + 100 + x * 0.53f, origin.y + 100 + z * 0.53f); };
-    draw->AddRectFilled(origin, {origin.x + 200, origin.y + 200}, IM_COL32(20, 30, 36, 235), 8);
-    for (const StaticBox& box : m_world.boxes())
-    {
+    ImVec2 origin(io.DisplaySize.x - 240, 20);
+    float mapScale=220.0f/m_world.terrain().extent();
+    auto point = [origin,mapScale](float x, float z) { return ImVec2(origin.x + 110 + std::clamp(x * mapScale,-108.0f,108.0f), origin.y + 110 + std::clamp(z * mapScale,-108.0f,108.0f)); };
+    draw->AddImage((ImTextureID)(intptr_t)m_mapTexture->id(), origin, {origin.x+220,origin.y+220}, {0,1}, {1,0});
+    for (const StaticBox& box : m_world.boxes()) {
         if (!box.facade) continue;
-        draw->AddRectFilled(point(box.center.x - box.size.x / 2, box.center.z - box.size.z / 2),
-                            point(box.center.x + box.size.x / 2, box.center.z + box.size.z / 2), IM_COL32(88, 105, 111, 255));
+        draw->AddRectFilled(point(box.center.x-box.size.x/2,box.center.z-box.size.z/2),
+                            point(box.center.x+box.size.x/2,box.center.z+box.size.z/2),IM_COL32(165,166,147,255));
     }
+    for (const Road& road : m_world.roads())
+        for (size_t i=1;i<road.route.size();++i) {
+            auto a=road.route[i-1],b=road.route[i],mid=(a+b)*.5f;
+            if (m_world.terrain().heightAt(mid.x,mid.z)<0)
+                draw->AddLine(point(a.x,a.z),point(b.x,b.z),IM_COL32(185,185,169,255),2);
+        }
     for (const Vehicle* vehicle : m_vehicles)
         draw->AddCircleFilled(point(vehicle->position().x, vehicle->position().z), 1.8f, IM_COL32(239, 193, 85, 255));
     if (m_deliveryActive) draw->AddCircle(point(target.x, target.z), 5, IM_COL32(70, 245, 190, 255), 16, 2);
     float yaw = driving ? driving->yaw() : m_player->yaw;
     glm::vec2 f(std::sin(glm::radians(yaw)), std::cos(glm::radians(yaw)));
     glm::vec2 r(f.y, -f.x), c(pos.x, pos.z);
-    glm::vec2 tip = c + f * 9.0f, left = c - f * 5.0f - r * 5.0f, right = c - f * 5.0f + r * 5.0f;
+    glm::vec2 tip = c + f * 45.0f, left = c - f * 25.0f - r * 25.0f, right = c - f * 25.0f + r * 25.0f;
     draw->AddTriangleFilled(point(tip.x, tip.y), point(left.x, left.y), point(right.x, right.y), IM_COL32(255, 255, 255, 255));
-    draw->AddText({origin.x + 8, origin.y + 6}, IM_COL32(210, 225, 230, 255), "N ^   CITY");
-    draw->AddText({origin.x + 6, origin.y + 204}, IM_COL32(220, 232, 236, 255), "Ramp yard: west of park");
+    draw->AddText({origin.x + 8, origin.y + 6}, IM_COL32(210, 225, 230, 255), "N ^   ISLAND");
+    draw->AddText({origin.x + 6, origin.y + 224}, IM_COL32(220, 232, 236, 255), "F1: quick travel / island tools");
 }
 
 void Game::startCourierRun()

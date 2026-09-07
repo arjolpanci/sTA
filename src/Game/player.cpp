@@ -31,6 +31,7 @@ void Player::update(const ActorContext& ctx, float dt)
         yaw = glm::degrees(std::atan2(dir.x, dir.z));
 
         float speed = ctx.input.keyDown(GLFW_KEY_LEFT_SHIFT) ? runSpeed : walkSpeed;
+        if (m_swimming) speed = walkSpeed * .5f;
         glm::vec3 delta = dir * speed * dt;
 
         glm::vec3 previous = position;
@@ -41,10 +42,12 @@ void Player::update(const ActorContext& ctx, float dt)
     // vertical: gravity, jumping, and following the ground - flat, a ramp,
     // or a rooftop - underfoot
     if (ctx.input.keyDown(GLFW_KEY_SPACE))
-        m_vertical.jump(jumpSpeed);
+        m_vertical.jump(m_swimming ? jumpSpeed * .45f : jumpSpeed);
 
     float groundY = ctx.groundHeightAt(position.x, position.z);
     resolveVerticalMotion(m_vertical, position.y, dt, groundY, [&]() { return ctx.collides(collisionBox()); });
+    m_swimming = groundY < ctx.seaLevel - .9f && position.y <= ctx.seaLevel - .9f;
+    if (m_swimming) {position.y = ctx.seaLevel - .9f; m_vertical.land();}
 }
 
 void Player::render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const

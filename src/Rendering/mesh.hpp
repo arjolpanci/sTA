@@ -4,13 +4,13 @@
 #include <vector>
 #include <glm/glm.hpp>
 
-// A GPU mesh with a fixed vertex layout: position(3) normal(3) uv(2).
+// A GPU mesh: position(3), normal(3), uv(2), with optional per-vertex color(3).
 // Meshes are meant to be shared: create one cube and draw it many times
 // with different model matrices instead of one VAO per object.
 class Mesh
 {
 public:
-    explicit Mesh(const std::vector<float>& vertices);
+    explicit Mesh(const std::vector<float>& vertices, bool vertexColors = false);
     ~Mesh();
 
     Mesh(const Mesh&) = delete;
@@ -34,6 +34,7 @@ public:
 private:
     unsigned int m_VAO = 0, m_VBO = 0;
     int m_vertexCount = 0;
+    bool m_vertexColors = false;
 };
 
 #endif

@@ -30,7 +30,7 @@ void Renderer::beginFrame(const Camera& camera, float aspect, const glm::mat4& l
 {
     m_shader.use();
     m_shader.setMat4("view", camera.viewMatrix());
-    m_shader.setMat4("projection", glm::perspective(glm::radians(60.0f), aspect, 0.1f, 400.0f));
+    m_shader.setMat4("projection", glm::perspective(glm::radians(60.0f), aspect, 0.1f, 3000.0f));
     m_shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
     m_shader.setVec3("lightDir", lightDir);
     m_shader.setVec3("viewPos", camera.position());

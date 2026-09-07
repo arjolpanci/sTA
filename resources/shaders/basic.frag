@@ -1,4 +1,5 @@
 #version 330 core
+in vec3 vColor;
 in vec3 vNormal;
 in vec2 vUV;
 in vec3 vFragPos;
@@ -50,7 +51,7 @@ float calcShadow(vec4 fragPosLightSpace, vec3 normal)
 
 void main()
 {
-    vec3 base = color;
+    vec3 base = color * vColor;
     if (useTexture)
         base *= texture(tex, vUV).rgb;
 
@@ -85,7 +86,7 @@ void main()
     vec3 direct = base * diffuse + vec3(specular);
     vec3 finalColor = ambient + (1.0 - shadow) * direct * 0.65;
     finalColor += vec3(1.0, 0.79, 0.45) * windowGlow;
-    float fog = smoothstep(80.0, 290.0, length(viewPos - vFragPos));
+    float fog = smoothstep(600.0, 2700.0, length(viewPos - vFragPos));
     finalColor = mix(finalColor, vec3(0.60, 0.73, 0.79), fog);
     FragColor = vec4(finalColor, 1.0);
 }

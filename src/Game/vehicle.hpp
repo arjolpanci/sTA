@@ -44,6 +44,10 @@ public:
     // player-controlled - it's what makes it "traffic" instead of "parked"
     void setPatrol(WaypointPath path) { m_path = std::move(path); }
 
+    glm::vec3 spawnPosition() const { return m_spawnPosition; }
+    float spawnYaw() const { return m_spawnYaw; }
+    void recover(const glm::vec3& position);
+
     void takeControl() { m_path.reset(); maxSpeed = 20.0f; }
 
     const std::vector<VehiclePart>& parts() const { return m_parts; }
@@ -66,6 +70,8 @@ public:
 private:
     glm::mat4 modelMatrix() const;
     glm::vec3 m_surfaceNormal{0,1,0};
+    glm::vec3 m_spawnPosition;
+    float m_spawnYaw;
     glm::vec3 m_position;
     float m_yaw;
     float m_speed = 0.0f; // signed: positive = forward, negative = reverse

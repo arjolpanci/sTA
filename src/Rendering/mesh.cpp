@@ -4,9 +4,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-Mesh::Mesh(const std::vector<float>& vertices)
+Mesh::Mesh(const std::vector<float>& vertices, bool vertexColors) : m_vertexColors(vertexColors)
 {
-    m_vertexCount = static_cast<int>(vertices.size() / 8);
+    int components = vertexColors ? 11 : 8;
+    m_vertexCount = static_cast<int>(vertices.size() / components);
 
     glGenVertexArrays(1, &m_VAO);
     glGenBuffers(1, &m_VBO);
@@ -15,13 +16,17 @@ Mesh::Mesh(const std::vector<float>& vertices)
     glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertices.size() * sizeof(float)), vertices.data(), GL_STATIC_DRAW);
 
-    const GLsizei stride = 8 * sizeof(float);
+    const GLsizei stride = components * sizeof(float);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
+    if (vertexColors) {
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, stride, (void*)(8 * sizeof(float)));
+        glEnableVertexAttribArray(3);
+    }
 
     glBindVertexArray(0);
 }
@@ -35,6 +40,7 @@ Mesh::~Mesh()
 void Mesh::draw() const
 {
     glBindVertexArray(m_VAO);
+    if (!m_vertexColors) glVertexAttrib3f(3,1,1,1);
     glDrawArrays(GL_TRIANGLES, 0, m_vertexCount);
     glBindVertexArray(0);
 }

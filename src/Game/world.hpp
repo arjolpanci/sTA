@@ -3,17 +3,21 @@
 
 #include <optional>
 #include <vector>
+#include <unordered_map>
+#include <cstdint>
+#include "terrain.hpp"
 #include <glm/glm.hpp>
 
 #include "collision_box.hpp"
 
-// A visible, collidable axis-aligned box (buildings, border walls).
+// A saved box: buildings, sidewalks, bridge decks and scenery.
 struct StaticBox
 {
     glm::vec3 center;
     glm::vec3 size;
     glm::vec3 color;
     bool facade = false;
+    float yaw = 0;
 };
 
 // Walkable wedge. Its high end and sides block entry below the surface.
@@ -30,37 +34,43 @@ struct Ramp
     std::optional<float> heightAt(float x, float z) const;
 };
 
-// Deterministic street grid, static geometry, ramps, and support queries.
+struct Road { float width; std::vector<glm::vec3> route; };
+struct VehicleSpawn { int type; float yaw, speed; std::vector<glm::vec3> route; };
+struct PedestrianSpawn { glm::vec3 color; float speed; std::vector<glm::vec3> route; };
+
+// Loads the baked scene and indexes static geometry for collision/support queries.
 class World
 {
 public:
     World();
+    const std::vector<Road>& roads() const { return m_roads; }
+    const Terrain& terrain() const { return m_terrain; }
+    const std::vector<VehicleSpawn>& vehicleSpawns() const { return m_vehicleSpawns; }
+    const std::vector<PedestrianSpawn>& pedestrianSpawns() const { return m_pedestrianSpawns; }
     static std::vector<glm::vec3> trafficLoop(float x, float z);
 
     const std::vector<StaticBox>& boxes() const { return m_boxes; }
     const std::vector<StaticBox>& decorations() const { return m_decorations; }
     const std::vector<Ramp>& ramps() const { return m_ramps; }
-    glm::vec2 groundSize() const { return m_groundSize; }
+    glm::vec2 groundSize() const { return glm::vec2(m_terrain.extent()); }
 
     // Upright oriented actors against static solids and ramp walls.
     bool collides(const CollisionBox& box) const;
 
-    // the height of whatever's underfoot at (x, z): the flat floor (0), a
-    // building/wall rooftop if (x, z) is over one, or a ramp - whichever is
-    // highest. Does not know about other actors (see Game::collisionPredicateFor
-    // for that side of collision).
+    // Terrain plus reachable rooftops, bridge decks and ramps. maxHeight
+    // prevents actors below bridges from snapping onto their decks.
     float groundHeightAt(float x, float z, float maxHeight = 10000.0f) const;
     glm::vec3 surfaceNormal(const glm::vec3& feet) const;
     float supportHeight(const CollisionBox& actor, float maxHeight) const;
 
 private:
-    // centerOnGround is the center of the footprint at y=0; the box is lifted
-    // so it sits on the ground
-    void addBox(const glm::vec3& centerOnGround, const glm::vec3& size, const glm::vec3& color);
-    void addRamp(const glm::vec3& footprintCenter, const glm::vec2& footprintSize, bool alongX,
-                 float lowHeight, float highHeight, const glm::vec3& color);
-
-    glm::vec2 m_groundSize{ 360.0f, 360.0f }; // x, z extents
+    std::vector<size_t> candidates(float x, float z, float radius = 0) const;
+    static int64_t cellKey(int x, int z);
+    Terrain m_terrain;
+    std::vector<Road> m_roads;
+    std::unordered_map<int64_t, std::vector<size_t>> m_cells;
+    std::vector<VehicleSpawn> m_vehicleSpawns;
+    std::vector<PedestrianSpawn> m_pedestrianSpawns;
     std::vector<StaticBox> m_boxes;
     std::vector<StaticBox> m_decorations;
     std::vector<CollisionBox> m_colliders;

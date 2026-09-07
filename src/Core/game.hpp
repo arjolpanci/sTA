@@ -18,6 +18,8 @@ class Renderer;
 class Mesh;
 class Texture;
 class ShadowMap;
+class IslandRenderer;
+class SceneRenderer;
 
 // Owns the window and everything in the scene, and runs the main loop:
 // fixed-timestep simulation (so gameplay is framerate-independent) with
@@ -60,7 +62,10 @@ private:
     std::vector<Vehicle*> m_vehicles;             // non-owning, point into m_actors
     Actor* m_controlled = nullptr;                // whichever actor currently receives input
 
-    std::vector<glm::vec3> m_deliveryStops{{60, 0, 24}, {120, 0, -84}, {-60, 0, -108}, {-120, 0, 72}, {0, 0, 132}};
+    std::vector<glm::vec3> m_deliveryStops{{60, 8, 24}, {390, 26, 24}, {0, 32, -330}, {-610, 8, 24}, {0, 8, 132}};
+    float m_worldTime = 0;
+    float m_waveStrength = 1.0f;
+    float m_waterRecoveryNotice = 0;
     bool m_deliveryActive = false;
     bool m_showHUD = true;
     int m_debugVehicleIndex = 0;
@@ -82,9 +87,10 @@ private:
     // once the OpenGL context exists
     std::unique_ptr<Renderer> m_renderer;
     std::unique_ptr<Mesh> m_cubeMesh;
-    std::unique_ptr<Mesh> m_groundMesh;
+    std::unique_ptr<IslandRenderer> m_islandRenderer;
+    std::unique_ptr<SceneRenderer> m_sceneRenderer;
     std::unique_ptr<Mesh> m_rampMesh;
-    std::unique_ptr<Texture> m_groundTexture;
+    std::unique_ptr<Texture> m_mapTexture;
     std::unique_ptr<ShadowMap> m_shadowMap;
 };
 

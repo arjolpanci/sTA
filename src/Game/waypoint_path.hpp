@@ -13,6 +13,8 @@ class WaypointPath
 public:
     explicit WaypointPath(std::vector<glm::vec3> points) : m_points(std::move(points)) {}
 
+    void reset() { m_index = 0; }
+
     const glm::vec3& current() const { return m_points[m_index]; }
 
     // call after moving toward current(): advances to the next point (or

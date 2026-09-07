@@ -14,6 +14,8 @@ add_executable(sTA
 	src/Rendering/mesh.cpp
 	src/Rendering/texture.cpp
 	src/Rendering/renderer.cpp
+	src/Rendering/island_renderer.cpp
+	src/Rendering/scene_renderer.cpp
 	src/Rendering/shadow_map.cpp
 	src/Game/world.cpp src/Game/terrain.cpp
 	src/Game/player.cpp
@@ -28,11 +30,15 @@ add_executable(sTA
 	lib/imgui/backends/imgui_impl_opengl3.cpp
 )
 
-add_custom_command(TARGET sTA POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-    "${CMAKE_CURRENT_SOURCE_DIR}/resources"
-    $<TARGET_FILE_DIR:sTA>/resources
+# Copy saved assets even when only the map/shaders changed. This never runs the generator.
+set(STA_RESOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/resources")
+if(CMAKE_CONFIGURATION_TYPES)
+  set(STA_RESOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/resources")
+endif()
+add_custom_target(sta_resources
+  COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/resources" "${STA_RESOURCE_DIR}"
 )
+add_dependencies(sTA sta_resources)
 
 # --- Setting up some directories -----------------------------
 set(PROJ_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -101,4 +107,11 @@ if(BUILD_TESTING)
   target_include_directories(sta_terrain_tests PRIVATE "${INCLUDE_DIR}" "${PROJ_ROOT}/src")
   add_test(NAME baked_terrain COMMAND sta_terrain_tests)
   set_tests_properties(physics_regressions traffic_patrols baked_terrain PROPERTIES WORKING_DIRECTORY "${PROJ_ROOT}")
+endif()
+
+if(BUILD_TESTING)
+  add_executable(sta_island_tests tests/island_tests.cpp src/Game/world.cpp src/Game/terrain.cpp)
+  target_include_directories(sta_island_tests PRIVATE "${INCLUDE_DIR}" "${PROJ_ROOT}/src")
+  add_test(NAME island_roads COMMAND sta_island_tests)
+  set_tests_properties(island_roads PROPERTIES WORKING_DIRECTORY "${PROJ_ROOT}")
 endif()

@@ -26,7 +26,7 @@ namespace
 }
 
 Vehicle::Vehicle(VehicleType type, const glm::vec3& position, float yaw)
-    : m_position(position), m_yaw(yaw)
+    : m_spawnPosition(position), m_spawnYaw(yaw), m_position(position), m_yaw(yaw)
 {
     switch (type)
     {
@@ -182,4 +182,11 @@ glm::mat4 Vehicle::modelMatrix() const
     if (glm::length(axis) > 0.0001f)
         model = glm::rotate(model, std::acos(std::clamp(m_surfaceNormal.y, -1.0f, 1.0f)), glm::normalize(axis));
     return glm::rotate(model, glm::radians(m_yaw), glm::vec3(0,1,0));
+}
+
+void Vehicle::recover(const glm::vec3& position)
+{
+    m_position=position; m_yaw=m_spawnYaw; m_speed=0;
+    m_vertical.land(); m_surfaceNormal={0,1,0};
+    if (m_path) m_path->reset();
 }

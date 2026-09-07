@@ -21,7 +21,8 @@ struct ActorContext
     bool controlled;                          // true only for the one actor currently receiving player input
     std::function<bool(const CollisionBox&)> collides; // world geometry + every other actor, precomputed for this actor
     std::function<glm::vec3(const glm::vec3&)> surfaceNormal;
-    std::function<float(float, float)> groundHeightAt; // ground height at (x, z): flat floor, a rooftop, or a ramp
+    std::function<float(float, float)> groundHeightAt; // terrain, rooftop, bridge or ramp
+    float seaLevel = 0.0f;
 };
 
 // Common interface for anything that lives in the world and needs a

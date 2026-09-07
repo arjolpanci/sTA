@@ -37,9 +37,9 @@ int main() {
         check(glm::dot(glm::cross(b-a, c-a), normal) > 0, "every ramp triangle winds outward");
     }
     World world;
-    check(world.groundSize().x == 360, "expanded city bounds");
-    check(!world.collides(CollisionBox::fromCenterHalf({0, 0.9f, 0}, {0.3f, 0.9f, 0.3f})), "player spawn clear");
-    check(close(world.groundHeightAt(21, -30, 0.45f), 0.16f), "inaccessible roofs are excluded");
+    check(world.groundSize().x == 2048, "expanded city bounds");
+    check(!world.collides(CollisionBox::fromCenterHalf({0, 8.9f, 0}, {0.3f, 0.9f, 0.3f})), "player spawn clear");
+    check(close(world.groundHeightAt(21, -30, 8.45f), 8.16f), "inaccessible roofs are excluded");
     for (const Ramp& ramp : world.ramps()) {
         glm::vec3 along = ramp.alongX ? glm::vec3(1,0,0) : glm::vec3(0,0,1);
         auto low = ramp.footprintCenter - along * ramp.footprintSize.y * 0.5f;
@@ -85,11 +85,11 @@ int main() {
     Context ctx{[&](const CollisionBox& b){return wall.intersects(b);}, [](float,float){return 0.0f;}};
     moveHorizontal(pos, {12,0,2}, true, bounds, ctx);
     check(pos.x < 2.7f && pos.z > 1.9f, "fast motion cannot tunnel through thin walls and slides along them");
-    pos = {7.5f,0,20};
+    pos = {7.5f,8,20};
     Context curb{[&](const CollisionBox& b){return world.collides(b);}, [&](float x,float z){
         auto b = bounds(); b.center.x=x; b.center.z=z; return world.supportHeight(b,pos.y+MAX_STEP_UP);
     }};
     moveHorizontal(pos, {1,0,0}, true, bounds, curb);
-    check(pos.x > 8.4f && close(pos.y,0.16f), "walk onto sidewalk with leading edge of footprint");
+    check(pos.x > 8.4f && close(pos.y,8.16f), "walk onto sidewalk with leading edge of footprint");
     std::cout << checks << " physics checks passed\n";
 }
