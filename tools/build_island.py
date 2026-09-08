@@ -11,6 +11,10 @@ import struct
 import zlib
 
 SEED = 731942
+# The road mask is a separate, finer grid than the heightfield: at the 4 m
+# terrain spacing a 5 m mountain road is barely one sample wide, and its edges
+# come out as staircase steps rather than as a road.
+ROAD_N = 2049
 # Kept in step with VehicleModels in src/Game/model_catalog.hpp: every model has
 # to appear in the baked map, which tests/island_tests.cpp checks.
 VEHICLE_MODELS = 19
@@ -23,6 +27,32 @@ SEA = 0.0
 def smooth(a, b, x):
     t = max(0., min(1., (x - a) / (b - a)))
     return t * t * (3 - 2 * t)
+
+
+def spline(points, step=6.0):
+    """Catmull-Rom through the given control points, sampled every `step` metres.
+
+    Hand-authored roads are a handful of corners, and a corner in a polyline is
+    a corner on the ground: the terrain is cut to the segments, so a straight
+    road reads as ruled and a bend reads as a crease. Sampling a spline through
+    the same corners keeps the authored route and loses the ruled look.
+    """
+    if len(points) < 3:
+        return list(points)
+    pts = [points[0]] + list(points) + [points[-1]]
+    out = [points[0]]
+    for i in range(len(pts) - 3):
+        p0, p1, p2, p3 = (tuple(p) for p in pts[i:i + 4])
+        length = math.dist((p1[0], p1[2]), (p2[0], p2[2]))
+        for k in range(1, max(2, int(length / step)) + 1):
+            t = k / max(2, int(length / step))
+            t2, t3 = t * t, t * t * t
+            out.append(tuple(
+                0.5 * ((2 * p1[c]) + (-p0[c] + p2[c]) * t
+                       + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t2
+                       + (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * t3)
+                for c in range(3)))
+    return out
 
 
 def random_at(x, z):
@@ -73,7 +103,9 @@ def main(output):
         buildings += int(facade)
         records.append(('B' if solid else 'D', x, y + sy / 2, z, sx, sy, sz, *color, int(facade), yaw))
 
-    def road(points, width=7):
+    def road(points, width=7, curve=False):
+        if curve:
+            points = spline(points)
         for a, b in zip(points, points[1:]):
             roads.append((a, b, width))
 
@@ -156,17 +188,22 @@ def main(output):
     district(90,-330,3,3,32,'Highland',True)
     district(-610,90,3,3,8,'West harbor',True)
     # Connections are authored gentle grades; heightmap is cut/filled around them.
-    road([(180,8,0),(230,14,0),(270,26,0)])
-    road([(0,8,-180),(0,20,-210),(0,32,-240)])
-    road([(-180,8,120),(-300,10,120),(-378,12,120)])
+    # Each is sampled to a polyline once and then shared: the road surface, the
+    # terrain cut and the traffic route all have to be the same curve, or cars
+    # drive beside the road they are supposed to be on.
+    east_link = spline([(180,8,0),(214,12,-6),(248,18,-4),(270,26,0)])
+    north_link = spline([(0,8,-180),(-9,14,-196),(4,24,-218),(0,32,-240)])
+    west_link = spline([(-180,8,120),(-240,9,132),(-310,11,126),(-378,12,120)])
+    south_link = spline([(-180,8,-120),(-224,11,-150),(-268,14,-182),(-320,13,-192),(-378,12,-180)])
+    harbor_link = spline([(-482,12,-180),(-534,15,-186),(-582,13,-128),(-604,10,-58),(-610,8,0)])
+    scenic = spline([(180,32,-330),(240,46,-350),(290,64,-410),(230,92,-480),(158,110,-500),(130,110,-500),(102,110,-497),
+                     (20,106,-490),(-90,91,-420),(-160,63,-330),(-220,36,-250),(-260,13,-180)])
+    south = spline([(-180,8,120),(-220,10,240),(-150,13,340),(0,16,390),(150,18,390),
+                    (290,18,320),(390,26,180)])
+    for link in (east_link,north_link,west_link,south_link,harbor_link):
+        road(link)
     road([(-482,12,120),(-492,12,120),(-520,8,120)])
-    road([(-180,8,-120),(-260,13,-180),(-378,12,-180)])
-    road([(-482,12,-180),(-550,14,-180),(-610,8,0)])
-    scenic = [(180,32,-330),(240,46,-350),(290,64,-410),(230,92,-480),(158,110,-500),(130,110,-500),(102,110,-497),
-              (20,106,-490),(-90,91,-420),(-160,63,-330),(-220,36,-250),(-260,13,-180)]
     road(scenic,5)
-    south = [(-180,8,120),(-220,10,240),(-150,13,340),(0,16,390),(150,18,390),
-             (290,18,320),(390,26,180)]
     road(south,6)
     # Bridges cross the tidal strait. Endpoints overlap road earthworks.
     for z in (120,-180):
@@ -194,13 +231,13 @@ def main(output):
                           (0,(395.5,26,0),0),(1,(5.5,32,-330),0),(2,(-628,8,5.5),90)]:
         records.append(('V',type_,yaw,0,1,*pos))
 
-    arterial=[(180,8,0),(230,14,0),(270,26,0),(390,26,0),(390,26,180),(290,18,320),
-              (150,18,390),(0,16,390),(-150,13,340),(-220,10,240),(-180,8,120),(0,8,120),(0,8,0)]
-    bridges=[(-180,8,120),(-300,10,120),(-378,12,120),(-482,12,120),(-520,8,120),(-640,8,120),(-640,8,0),
-             (-610,8,0),(-550,14,-180),(-482,12,-180),(-378,12,-180),(-260,13,-180),(-180,8,-120)]
-    mountain=[(180,32,-330),*scenic[1:],(-180,8,-120),(0,8,-120),(0,8,-180),(0,20,-210),(0,32,-240),(0,32,-300),(180,32,-300)]
+    # Patrol routes are stitched from the same curved polylines the roads use.
+    arterial=[*east_link,(390,26,0),(390,26,180),*list(reversed(south))[1:],(0,8,120),(0,8,0)]
+    bridges=[(-180,8,120),*west_link[1:],(-482,12,120),(-520,8,120),(-640,8,120),(-640,8,0),
+             (-610,8,0),*list(reversed(harbor_link))[1:],*list(reversed(south_link))[1:]]
+    mountain=[*scenic,(-180,8,-120),(0,8,-120),*north_link,(0,32,-300),(180,32,-300)]
     for route,yaw in ((arterial,90),(bridges,-90),(mountain,72)):
-        records.append(('V',0,yaw,7,len(route),*(v for p in route for v in p)))
+        records.append(('V',0,yaw,7,len(route),*(round(v,3) for p in route for v in p)))
     for a,b,width in roads: records.append(('L',width,2,*a,*b))
 
     print('Sampling fractal heightmap and shaping terraces...', flush=True)
@@ -216,6 +253,8 @@ def main(output):
                 h = h*(1-influence)+y*influence
             heights.append(h)
     masks = [0.]*(N*N)
+    road_step = (N-1)*STEP/(ROAD_N-1)
+    fine = bytearray(ROAD_N*ROAD_N)
     # Rasterize only each road's local bounding rectangle, keeping baking cheap.
     for a,b,width in roads:
         ax,ay,az = a; bx,by,bz = b
@@ -232,6 +271,18 @@ def main(output):
                 k=j*N+i
                 heights[k]=heights[k]*(1-influence)+(ay+t*(by-ay))*influence
                 masks[k]=max(masks[k],1-smooth(width-1,width+1,d))
+        # Same rasterization again on the fine grid, which is what gets drawn.
+        fmin=max(0,math.floor((min(ax,bx)-reach+HALF)/road_step)); fmax=min(ROAD_N-1,math.ceil((max(ax,bx)+reach+HALF)/road_step))
+        gmin=max(0,math.floor((min(az,bz)-reach+HALF)/road_step)); gmax=min(ROAD_N-1,math.ceil((max(az,bz)+reach+HALF)/road_step))
+        for g in range(gmin,gmax+1):
+            row=g*ROAD_N
+            z=g*road_step-HALF
+            for f in range(fmin,fmax+1):
+                x=f*road_step-HALF
+                t=max(0,min(1,((x-ax)*(bx-ax)+(z-az)*(bz-az))/length2))
+                d=math.hypot(x-ax-t*(bx-ax),z-az-t*(bz-az))
+                value=int(255*(1-smooth(width-1.2,width+1.2,d)))
+                if value>fine[row+f]: fine[row+f]=value
     # Scatter natural vegetation away from roads, terrace edges and the shoreline.
     for cell_z in range(-620,621,19):
         for cell_x in range(-740,701,19):
@@ -265,8 +316,10 @@ def main(output):
         for k in range(start,len(values),3):
             values[k+1]=max(values[k+1],baked_height(values[k],values[k+2]))
         records[index]=tuple(values)
-    blob=b'STAISL1\n'+struct.pack('<Ifff',N,STEP,SEA,float(SEED))
+    blob=b'STAISL2\n'+struct.pack('<Ifff',N,STEP,SEA,float(SEED))
     blob+=struct.pack('<%sf'%len(heights),*heights)+struct.pack('<%sf'%len(masks),*masks)
+    # Fine road coverage, one byte per sample, after the two float grids.
+    blob+=struct.pack('<I',ROAD_N)+bytes(fine)
     (output/'island.bin').write_bytes(blob)
     scene='STA_SCENE 2\n'+'\n'.join(' '.join(str(round(v,4)) if isinstance(v,float) else str(v) for v in r) for r in records)+'\n'
     (output/'island.scene').write_text(scene)
@@ -285,7 +338,7 @@ def main(output):
     png=b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',N,N,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(scan,9))+chunk(b'IEND',b'')
     (output/'island-overview.png').write_bytes(png)
     manifest={'version':1,'seed':SEED,'grid':N,'spacing_metres':STEP,'extent_metres':HALF*2,'sea_level':SEA,
-              'height_range':[min(heights),max(heights)],'buildings':buildings,'scene_records':len(records),
+              'height_range':[min(heights),max(heights)],'road_mask_grid':ROAD_N,'buildings':buildings,'scene_records':len(records),
               'vehicles':sum(r[0]=='V' for r in records),'pedestrians':sum(r[0]=='P' for r in records),
               'road_segments':sum(r[0]=='L' for r in records),
               'districts':['Downtown','East gardens','Highland','West harbor'],

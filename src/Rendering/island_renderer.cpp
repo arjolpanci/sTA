@@ -31,6 +31,17 @@ IslandRenderer::IslandRenderer(const Terrain& terrain)
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+    glGenTextures(1,&m_roadTexture);
+    glBindTexture(GL_TEXTURE_2D,m_roadTexture);
+    glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+    glTexImage2D(GL_TEXTURE_2D,0,GL_R8,terrain.roadMaskResolution(),terrain.roadMaskResolution(),0,GL_RED,GL_UNSIGNED_BYTE,terrain.roadMask().data());
+    glPixelStorei(GL_UNPACK_ALIGNMENT,4);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+
     // A finite mesh extends beyond the fog/far plane from every reachable coast.
     std::vector<float> water;
     auto vertex=[&](float x,float z) {water.insert(water.end(),{x,0,z,0,1,0,0,0});};
@@ -40,7 +51,7 @@ IslandRenderer::IslandRenderer(const Terrain& terrain)
     }
     m_water=std::make_unique<Mesh>(water);
 }
-IslandRenderer::~IslandRenderer() {glDeleteTextures(1,&m_terrainTexture);}
+IslandRenderer::~IslandRenderer() {glDeleteTextures(1,&m_terrainTexture);glDeleteTextures(1,&m_roadTexture);}
 void IslandRenderer::common(Shader& shader,const Camera& camera,float aspect)
 {
     shader.use();
@@ -70,6 +81,8 @@ void IslandRenderer::drawTerrain(const Camera& camera,float aspect,const glm::ma
     m_terrainShader.setVec3("ambientColor",lighting.ambientColor);
     m_terrainShader.setVec3("fogColor",lighting.fogColor);
     m_terrainShader.setBool("shadowsEnabled",enabled);
+    m_terrainShader.setInt("roadMask",2);
+    glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D,m_roadTexture); glActiveTexture(GL_TEXTURE0);
     m_terrainShader.setInt("shadowMap",1); m_terrainShader.setFloat("shadowTexelWorld",shadows.texelWorld());
     shadows.bindForSampling(1);
     Frustum frustum(glm::perspective(glm::radians(60.0f),aspect,.1f,3000.0f)*camera.viewMatrix());

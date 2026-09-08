@@ -119,19 +119,29 @@ uint32_t propNoise(float x, float z, uint32_t salt)
 }
 }
 
+// Distance from a point to the nearest point on a polyline.
+static float polylineDistance(const std::vector<glm::vec3>& route, float x, float z)
+{
+    if (route.empty()) return 1e9f;
+    // A parked car is a route of one point, and still needs its space.
+    float best = glm::length(glm::vec2(route.front().x - x, route.front().z - z));
+    for (size_t i=0; i+1 < route.size(); ++i)
+    {
+        glm::vec2 a(route[i].x, route[i].z), b(route[i+1].x, route[i+1].z);
+        glm::vec2 along = b - a;
+        float lengthSquared = glm::dot(along, along);
+        float t = lengthSquared > 0 ? glm::clamp(glm::dot(glm::vec2(x,z) - a, along) / lengthSquared, 0.0f, 1.0f) : 0.0f;
+        best = std::min(best, glm::length(glm::vec2(x,z) - (a + along*t)));
+    }
+    return best;
+}
+
 // Distance from a point to the nearest road surface edge, negative inside it.
 static float roadClearance(const std::vector<Road>& roads, float x, float z)
 {
     float clearance = 1e9f;
     for (const Road& road : roads)
-        for (size_t i=0; i+1 < road.route.size(); ++i)
-        {
-            glm::vec2 a(road.route[i].x, road.route[i].z), b(road.route[i+1].x, road.route[i+1].z);
-            glm::vec2 along = b - a;
-            float lengthSquared = glm::dot(along, along);
-            float t = lengthSquared > 0 ? glm::clamp(glm::dot(glm::vec2(x,z) - a, along) / lengthSquared, 0.0f, 1.0f) : 0.0f;
-            clearance = std::min(clearance, glm::length(glm::vec2(x,z) - (a + along*t)) - road.width*0.5f);
-        }
+        clearance = std::min(clearance, polylineDistance(road.route, x, z) - road.width*0.5f);
     return clearance;
 }
 
@@ -163,11 +173,15 @@ void World::placeProps()
         // belonging to one street lies in another's carriageway.
         if (roadClearance(m_roads, feet.x, feet.z) < prop.radius + 0.9f) return;
         // Baked actors are placed before this runs and are not part of the
-        // collision index, so their spawn points have to be kept clear by hand.
+        // collision index, so their routes have to be kept clear by hand. It is
+        // the whole route, not just the spawn point: patrols run along legs the
+        // road network does not cover, and a prop there stops the traffic dead.
         for (const auto& spawn : m_vehicleSpawns)
-            if (glm::length(glm::vec2(spawn.route.front().x - feet.x, spawn.route.front().z - feet.z)) < prop.radius + 3.5f) return;
+            // Wide of the route, not just clear of it: the traffic AI steers
+            // proportionally and cuts corners by a couple of metres.
+            if (polylineDistance(spawn.route, feet.x, feet.z) < prop.radius + 6.0f) return;
         for (const auto& spawn : m_pedestrianSpawns)
-            if (glm::length(glm::vec2(spawn.route.front().x - feet.x, spawn.route.front().z - feet.z)) < prop.radius + 1.2f) return;
+            if (polylineDistance(spawn.route, feet.x, feet.z) < prop.radius + 1.2f) return;
 
         const glm::vec3 center(feet.x, ground + prop.height*0.5f, feet.z);
         const glm::vec3 size(prop.radius*2, prop.height, prop.radius*2);

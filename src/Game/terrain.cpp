@@ -24,7 +24,7 @@ Terrain::Terrain(const std::string& path)
     std::ifstream file(path, std::ios::binary);
     if (!file) throw std::runtime_error("Missing baked island: " + path + ". Run from the build directory; generation is tools/build_island.py.");
     char magic[8];
-    if (!file.read(magic, 8) || std::string(magic, 8) != "STAISL1\n") throw std::runtime_error("Unsupported island heightmap format");
+    if (!file.read(magic, 8) || std::string(magic, 8) != "STAISL2\n") throw std::runtime_error("Unsupported island heightmap format");
     m_resolution = static_cast<int>(readWord(file));
     m_spacing = readFloat(file); m_seaLevel = readFloat(file);
     readFloat(file); // authoring seed, metadata only
@@ -34,6 +34,15 @@ Terrain::Terrain(const std::string& path)
     m_heights.resize(count); m_roads.resize(count);
     for (float& h : m_heights) { h = readFloat(file); if (std::abs(h) > 10000) throw std::runtime_error("Invalid island elevation"); }
     for (float& r : m_roads) { r = readFloat(file); if (r < 0 || r > 1) throw std::runtime_error("Invalid island road mask"); }
+
+    // Road coverage on its own finer grid: one byte per sample. The terrain
+    // spacing is far too coarse to carry a five-metre road's edges.
+    m_roadMaskResolution = static_cast<int>(readWord(file));
+    if (m_roadMaskResolution < m_resolution || m_roadMaskResolution > 8193)
+        throw std::runtime_error("Invalid island road mask grid");
+    m_roadMask.resize(size_t(m_roadMaskResolution) * m_roadMaskResolution);
+    if (!file.read(reinterpret_cast<char*>(m_roadMask.data()), std::streamsize(m_roadMask.size())))
+        throw std::runtime_error("Truncated island road mask");
     if (file.peek() != std::char_traits<char>::eof()) throw std::runtime_error("Unexpected island heightmap trailing data");
 }
 float Terrain::heightAt(float x, float z) const

@@ -5,6 +5,7 @@ in vec3 vFragPos;
 in vec4 vFragPosLightSpace;
 out vec4 FragColor;
 uniform sampler2D terrainData;
+uniform sampler2D roadMask;
 uniform sampler2DShadow shadowMap;
 uniform float terrainExtent, terrainResolution, seaLevel;
 uniform vec3 viewPos, lightDir, sunColor, ambientColor, fogColor;
@@ -19,7 +20,7 @@ float noise(vec2 p) {
 void main() {
     vec3 n=normalize(vNormal);
     vec2 uv=((vFragPos.xz/terrainExtent+.5)*(terrainResolution-1.0)+.5)/terrainResolution;
-    float road=texture(terrainData,uv).g;
+    float road=texture(roadMask,vFragPos.xz/terrainExtent+.5).r;
     float variation=noise(vFragPos.xz*.12)*.16+noise(vFragPos.xz*1.8)*.07;
     vec3 grass=vec3(.22,.34,.17)+variation*vec3(.5,.6,.3);
     vec3 sand=vec3(.67,.60,.41)+variation*.4;
@@ -28,7 +29,7 @@ void main() {
     vec3 base=mix(grass,rock,stone);
     base=mix(sand,base,smoothstep(seaLevel+1.2,seaLevel+5.0,vFragPos.y));
     vec3 asphalt=vec3(.085,.095,.10)+noise(vFragPos.xz*3.0)*.025;
-    base=mix(base,asphalt,smoothstep(.25,.8,road));
+    base=mix(base,asphalt,smoothstep(.35,.62,road));
     float shadow=0;
     // Same normal-offset lookup as the lit pass, so terrain and the objects
     // standing on it agree about where a shadow starts.

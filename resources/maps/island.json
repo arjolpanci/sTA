@@ -9,11 +9,12 @@
     -38.0,
     175.21713562856306
   ],
+  "road_mask_grid": 2049,
   "buildings": 122,
-  "scene_records": 5652,
+  "scene_records": 6032,
   "vehicles": 30,
   "pedestrians": 34,
-  "road_segments": 70,
+  "road_segments": 459,
   "districts": [
     "Downtown",
     "East gardens",
@@ -21,8 +22,8 @@
     "West harbor"
   ],
   "sha256": {
-    "island.bin": "bd1e78611a6cb6f238667c525ecaacbe08c68a2fa136f41408cb0968fb19e68a",
-    "island.scene": "45df63740630c77906dda3e8b5c3e82f8d554299f874850c4cfe05b5c343bbb8",
-    "island-overview.png": "668c89a7c887b4d213ccfd45a421686ccc98176e93bad979c8f9edb557b5ec32"
+    "island.bin": "6344984e68f5ab2e03e65ae0d79a5cab1d99de776617316c7079824e7f139b6d",
+    "island.scene": "b01efa47198cefe409a2715810a9b8e85f4b13d1b905b5450d54dd87c2a725f7",
+    "island-overview.png": "f91eeb55b3514fda6a0f8baa081f1b0f42a81a0866330367c04f0670d902ca49"
   }
 }

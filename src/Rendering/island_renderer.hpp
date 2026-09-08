@@ -24,6 +24,6 @@ private:
     std::vector<Chunk> m_chunks;
     std::unique_ptr<Mesh> m_water;
     Shader m_terrainShader, m_waterShader;
-    unsigned int m_terrainTexture = 0;
+    unsigned int m_terrainTexture = 0, m_roadTexture = 0;
     float m_extent, m_resolution, m_seaLevel;
 };
