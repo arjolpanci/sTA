@@ -105,6 +105,129 @@ World::World()
             for (int x=int(std::floor((box.center.x-r)/64)); x<=int(std::floor((box.center.x+r)/64)); ++x)
                 m_cells[cellKey(x,z)].push_back(i);
     }
+    placeProps();
+}
+
+namespace {
+// Stable per-position noise, so the same road always dresses the same way and
+// nothing about the scenery has to be baked into the scene file.
+uint32_t propNoise(float x, float z, uint32_t salt)
+{
+    uint32_t seed = uint32_t(int32_t(std::lround(x*4))) * 73856093u ^ uint32_t(int32_t(std::lround(z*4))) * 19349663u ^ salt*83492791u;
+    seed ^= seed >> 16; seed *= 0x45d9f3bu; seed ^= seed >> 16;
+    return seed;
+}
+}
+
+// Distance from a point to the nearest road surface edge, negative inside it.
+static float roadClearance(const std::vector<Road>& roads, float x, float z)
+{
+    float clearance = 1e9f;
+    for (const Road& road : roads)
+        for (size_t i=0; i+1 < road.route.size(); ++i)
+        {
+            glm::vec2 a(road.route[i].x, road.route[i].z), b(road.route[i+1].x, road.route[i+1].z);
+            glm::vec2 along = b - a;
+            float lengthSquared = glm::dot(along, along);
+            float t = lengthSquared > 0 ? glm::clamp(glm::dot(glm::vec2(x,z) - a, along) / lengthSquared, 0.0f, 1.0f) : 0.0f;
+            clearance = std::min(clearance, glm::length(glm::vec2(x,z) - (a + along*t)) - road.width*0.5f);
+        }
+    return clearance;
+}
+
+void World::placeProps()
+{
+    // Props are solid, so they join the same box/collider/cell arrays the baked
+    // geometry uses - and are tested against what is already there, which is
+    // why this runs after the spatial index is built rather than during load.
+    auto addSolid = [this](const CollisionBox& box, const glm::vec3& center, const glm::vec3& size, float yaw) {
+        size_t index = m_boxes.size();
+        m_boxes.push_back({center, size, {0.4f, 0.4f, 0.4f}, false, yaw, true});
+        m_colliders.push_back(box);
+        float r = (size.x + size.z) * 0.5f;
+        for (int z=int(std::floor((center.z-r)/64)); z<=int(std::floor((center.z+r)/64)); ++z)
+            for (int x=int(std::floor((center.x-r)/64)); x<=int(std::floor((center.x+r)/64)); ++x)
+                m_cells[cellKey(x,z)].push_back(index);
+    };
+
+    // One kerbside placement attempt, shared by the lamp cadence and the random
+    // clutter: level ground, clear of every carriageway, room to stand.
+    auto place = [&](const glm::vec3& middle, const glm::vec3& outward, float roadY, int model, float yaw) {
+        const PropModel& prop = PropModels[size_t(model)];
+        const glm::vec3 feet = middle + outward*(prop.radius + 1.2f);
+        const float ground = groundHeightAt(feet.x, feet.z);
+        // Skip anything the road does not run level with: cliffs, water, and
+        // the ground under a bridge.
+        if (std::abs(ground - roadY) > 1.0f) return;
+        // Clear of *every* road, not just this one: at a junction a kerb
+        // belonging to one street lies in another's carriageway.
+        if (roadClearance(m_roads, feet.x, feet.z) < prop.radius + 0.9f) return;
+        // Baked actors are placed before this runs and are not part of the
+        // collision index, so their spawn points have to be kept clear by hand.
+        for (const auto& spawn : m_vehicleSpawns)
+            if (glm::length(glm::vec2(spawn.route.front().x - feet.x, spawn.route.front().z - feet.z)) < prop.radius + 3.5f) return;
+        for (const auto& spawn : m_pedestrianSpawns)
+            if (glm::length(glm::vec2(spawn.route.front().x - feet.x, spawn.route.front().z - feet.z)) < prop.radius + 1.2f) return;
+
+        const glm::vec3 center(feet.x, ground + prop.height*0.5f, feet.z);
+        const glm::vec3 size(prop.radius*2, prop.height, prop.radius*2);
+        if (prop.solid)
+        {
+            auto box = CollisionBox::fromCenterHalf(center, size*0.5f, yaw);
+            if (collides(box)) return;
+            addSolid(box, center, size, yaw);
+        }
+        m_props.push_back({{feet.x, ground, feet.z}, yaw, prop.height, model});
+    };
+
+    for (const Road& road : m_roads)
+    {
+        for (size_t i=0; i+1 < road.route.size(); ++i)
+        {
+            const glm::vec3 from = road.route[i], to = road.route[i+1];
+            const glm::vec3 along = to - from;
+            const float length = glm::length(glm::vec2(along.x, along.z));
+            if (length < 14.0f) continue;
+            const glm::vec3 direction = along / length;
+            const glm::vec3 side(-direction.z, 0, direction.x);
+            const float heading = glm::degrees(std::atan2(direction.x, direction.z));
+
+            // Lamps first, on a regular cadence and alternating sides.
+            for (float travelled = 8.0f; travelled < length - 8.0f; travelled += LampSpacing)
+            {
+                const float hand = int(travelled/LampSpacing) % 2 ? 1.0f : -1.0f;
+                const glm::vec3 point = from + direction*travelled;
+                place(point + side*hand*(road.width*0.5f), side*hand, point.y, 0, heading + 90.0f*hand);
+            }
+
+            for (float travelled = 6.0f; travelled < length - 6.0f; travelled += 11.0f)
+            {
+                const glm::vec3 point = from + direction*travelled;
+                if (propNoise(point.x, point.z, 7) % 5 == 0)
+                {
+                    // A manhole every so often, on the road surface itself.
+                    float ground = groundHeightAt(point.x, point.z);
+                    if (std::abs(ground - point.y) < 1.0f)
+                        m_props.push_back({{point.x, ground, point.z}, heading, ManholeHeight, -1});
+                }
+
+                for (float hand : {-1.0f, 1.0f})
+                {
+                    const glm::vec3 middle = point + side*hand*(road.width*0.5f);
+                    uint32_t seed = propNoise(middle.x, middle.z, 1);
+                    int roll = int(seed % 100u), model = -1;
+                    for (size_t p=0; p<PropModels.size() && model<0; ++p)
+                        if (PropModels[p].weight > 0 && (roll -= PropModels[p].weight) < 0) model = int(p);
+                    if (model < 0) continue; // most kerbside slots stay empty
+
+                    // Facing the road, give or take, so a row never looks stamped.
+                    float yaw = (PropModels[size_t(model)].alongRoad ? heading : heading + 90.0f*hand)
+                              + float(int(seed>>8) % 13) - 6.0f;
+                    place(middle, side*hand, point.y, model, yaw);
+                }
+            }
+        }
+    }
 }
 
 int64_t World::cellKey(int x, int z)

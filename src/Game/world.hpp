@@ -38,6 +38,9 @@ struct Ramp
 struct TreeSpawn { glm::vec3 feet; float height, yaw; int model; };
 
 struct Road { float width; std::vector<glm::vec3> route; };
+// Kerbside scenery. -1 as the model means the manhole cover, which is placed on
+// the road surface rather than beside it.
+struct PropSpawn { glm::vec3 feet; float yaw, height; int model; };
 struct VehicleSpawn { int type; float yaw, speed; std::vector<glm::vec3> route; };
 struct PedestrianSpawn { glm::vec3 color; float speed; std::vector<glm::vec3> route; };
 
@@ -48,6 +51,7 @@ public:
     World();
     const std::vector<TreeSpawn>& trees() const { return m_trees; }
     const std::vector<Road>& roads() const { return m_roads; }
+    const std::vector<PropSpawn>& props() const { return m_props; }
     const Terrain& terrain() const { return m_terrain; }
     const std::vector<VehicleSpawn>& vehicleSpawns() const { return m_vehicleSpawns; }
     const std::vector<PedestrianSpawn>& pedestrianSpawns() const { return m_pedestrianSpawns; }
@@ -68,11 +72,15 @@ public:
     float supportHeight(const CollisionBox& actor, float maxHeight) const;
 
 private:
+    // Derived from the baked roads rather than baked itself: the scene file
+    // stays untouched, and moving a road moves its street furniture with it.
+    void placeProps();
     std::vector<size_t> candidates(float x, float z, float radius = 0) const;
     static int64_t cellKey(int x, int z);
     Terrain m_terrain;
     std::vector<Road> m_roads;
     std::vector<TreeSpawn> m_trees;
+    std::vector<PropSpawn> m_props;
     std::unordered_map<int64_t, std::vector<size_t>> m_cells;
     std::vector<VehicleSpawn> m_vehicleSpawns;
     std::vector<PedestrianSpawn> m_pedestrianSpawns;

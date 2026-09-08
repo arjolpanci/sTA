@@ -1,0 +1,10 @@
+Poly Haven scanned street props - CC0 1.0 Universal (public domain)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Source: https://polyhaven.com/models  (per-model pages are listed in ../manifest.json)
+
+Free to use in personal and commercial projects. Attribution is appreciated, not required.
+This notice records the license stated by Poly Haven for every asset it publishes.
+
+The committed .glb files are decimated, re-textured derivatives of those downloads;
+tools/import_polyhaven_trees.py reproduces them from the original URLs.

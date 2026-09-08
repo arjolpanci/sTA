@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Turn Poly Haven's CC0 scanned trees into game-budget GLB models.
+"""Turn Poly Haven's CC0 scans into game-budget GLB models.
 
 The source assets are film-density scans (a single pine is 17 million
 triangles) whose glTF exports also drop the leaf alpha: Poly Haven ships the
@@ -13,7 +13,7 @@ import time:
   2. the metallic/roughness (ARM) textures are dropped, since the Blinn-Phong
      renderer never reads them;
   3. meshoptimizer (gltfpack) simplifies the wood down to a tree budget;
-  4. the canopy is rebuilt as leaf cards. A scanned canopy is half a million
+  4. for trees, the canopy is rebuilt as leaf cards. A scanned canopy is half a million
      individually modelled leaves, and no general-purpose simplifier can thin
      that: it deletes whole leaves until the tree is a bare skeleton. So the
      leaf positions and normals are sampled from the scan and replaced with a
@@ -24,7 +24,7 @@ Downloads land in a scratch directory and are not committed; only the packed
 GLBs under resources/models/trees are. Re-running is idempotent and the
 manifest records the source URL and the hash of both the download and result.
 
-Usage:  python3 tools/import_polyhaven_trees.py [--work DIR] [--only NAME ...]
+Usage:  python3 tools/import_polyhaven.py [--work DIR] [--only NAME ...]
 """
 
 import argparse
@@ -46,7 +46,7 @@ from PIL import Image
 API = "https://api.polyhaven.com"
 RESOLUTION = "1k"
 ROOT = Path(__file__).resolve().parent.parent
-OUT_DIR = ROOT / "resources/models/trees"
+MODELS = ROOT / "resources/models"
 
 # Slot order is load-bearing: the baked island scene stores a tree variant index
 # into this list (0-5 broadleaf, 6-9 highland, 10-11 coastal), so entries are
@@ -62,7 +62,7 @@ OUT_DIR = ROOT / "resources/models/trees"
 # "twig" texture is bark rather than needles and the searsias ship no cutout
 # map at all, which leaves both with a canopy that can be neither decimated
 # nor rebuilt.
-TREES = [
+TREES = [  # (Poly Haven id, model name, wood budget, canopy cards, card size, aggressive)
     ("jacaranda_tree", "tree_jacaranda", 3500, 1400, 2.4, True),
     ("island_tree_01", "tree_island_a", 3500, 1200, 2.2, False),
     ("island_tree_02", "tree_island_b", 3500, 1500, 1.8, False),
@@ -75,6 +75,22 @@ TREES = [
     ("island_tree_03", "tree_island_slim", 3500, 900, 1.8, False),
     ("quiver_tree_01", "tree_quiver_a", 5000, 0, 0, False),
     ("quiver_tree_02", "tree_quiver_b", 4000, 0, 0, False),
+]
+
+# Street dressing from Poly Haven's Hidden Alley collection. No canopy to
+# rebuild, so these only need the decimation and texture passes. The
+# collection's second street lamp is a wall-mounted lantern with no post, so
+# there is nothing on a kerb for it to stand on and it is not imported.
+PROPS = [
+    ("street_lamp_01", "street_lamp", 1500, 0, 0, False),
+    ("fire_hydrant", "fire_hydrant", 2500, 0, 0, False),
+    ("metal_trash_can", "trash_can", 1000, 0, 0, False),
+    ("concrete_road_barrier", "road_barrier", 800, 0, 0, False),
+    ("utility_box_01", "utility_box", 600, 0, 0, False),
+    ("modular_street_seating", "street_bench", 4000, 0, 0, False),
+    ("old_tyre", "old_tyre", 600, 0, 0, False),
+    ("covered_car", "covered_car", 1500, 0, 0, False),
+    ("water_manhole_cover", "manhole_cover", 400, 0, 0, False),
 ]
 
 
@@ -457,6 +473,32 @@ def pack(gltfpack, prepared, target, triangles, output, aggressive):
     ], check=True, capture_output=True, text=True)
 
 
+def import_model(gltfpack, work, folder, asset, name, budget, cards, card_scale, aggressive):
+    out_dir = MODELS / folder
+    out_dir.mkdir(parents=True, exist_ok=True)
+    output = out_dir / f"{name}.glb"
+    print(f"{asset} -> {folder}/{name}.glb", flush=True)
+
+    prepared, triangles, canopy, url, source_hash = prepare(asset, work)
+    pack(gltfpack, prepared, budget, triangles, output, aggressive)
+    leaves = 0
+    if cards and canopy:
+        material, positions, normals = canopy
+        leaves = inject_leaf_cards(output, material,
+                                   leaf_cards(positions, normals, cards, card_scale, zlib.crc32(name.encode())))
+    canopy_note = f" + {leaves:,} of canopy" if leaves else ""
+    print(f"  {triangles:,} triangles -> {budget:,}{canopy_note}, {output.stat().st_size/1e6:.1f} MB", flush=True)
+    return {
+        "file": f"{folder}/{name}.glb",
+        "source": f"https://polyhaven.com/a/{asset}",
+        "download": url,
+        "author": "Poly Haven",
+        "license": "CC0-1.0",
+        "source_sha256": source_hash,
+        "sha256": sha256(output),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--work", default=os.environ.get("STA_ASSET_WORK", "/tmp/sta-assets"))
@@ -467,32 +509,13 @@ def main():
     gltfpack = arguments.gltfpack
     work = Path(arguments.work)
     work.mkdir(parents=True, exist_ok=True)
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     records = []
-    for asset, name, budget, cards, card_scale, aggressive in TREES:
-        if arguments.only and name not in arguments.only and asset not in arguments.only:
-            continue
-        print(f"{asset} -> {name}.glb", flush=True)
-        prepared, triangles, canopy, url, source_hash = prepare(asset, work)
-        output = OUT_DIR / f"{name}.glb"
-        pack(gltfpack, prepared, budget, triangles, output, aggressive)
-        leaves = 0
-        if cards and canopy:
-            material, positions, normals = canopy
-            leaves = inject_leaf_cards(output, material,
-                                       leaf_cards(positions, normals, cards, card_scale, zlib.crc32(name.encode())))
-        print(f"  {triangles:,} triangles -> {budget:,} of wood + {leaves:,} of canopy, "
-              f"{output.stat().st_size/1e6:.1f} MB", flush=True)
-        records.append({
-            "file": f"trees/{name}.glb",
-            "source": f"https://polyhaven.com/a/{asset}",
-            "download": url,
-            "author": "Poly Haven",
-            "license": "CC0-1.0",
-            "source_sha256": source_hash,
-            "sha256": sha256(output),
-        })
+    for folder, table in (("trees", TREES), ("props", PROPS)):
+        for entry in table:
+            if arguments.only and entry[0] not in arguments.only and entry[1] not in arguments.only:
+                continue
+            records.append(import_model(gltfpack, work, folder, *entry))
 
     manifest = ROOT / "resources/models/manifest.json"
     existing = json.loads(manifest.read_text())
@@ -502,7 +525,7 @@ def main():
     for record in records:
         by_file[record["file"]] = record
     manifest.write_text(json.dumps(sorted(by_file.values(), key=lambda r: r["file"]), indent=2) + "\n")
-    print(f"manifest updated with {len(records)} tree(s)")
+    print(f"manifest updated with {len(records)} model(s)")
 
 
 if __name__ == "__main__":

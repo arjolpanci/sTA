@@ -224,6 +224,87 @@
     "sha256": "53db49ba84193beb60173e94396764c86f7805752582a81dfdfd7f0889a10783"
   },
   {
+    "file": "props/covered_car.glb",
+    "source": "https://polyhaven.com/a/covered_car",
+    "download": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/covered_car/covered_car_1k.gltf",
+    "author": "Poly Haven",
+    "license": "CC0-1.0",
+    "source_sha256": "80b210b08673833a8085812b9ee71286213b2af92654886e5a1a368977265aa7",
+    "sha256": "634f69040d2b38aa66a6d1d6152178ae47d3fbf5593f5e72c0c180fbbae9ba8b"
+  },
+  {
+    "file": "props/fire_hydrant.glb",
+    "source": "https://polyhaven.com/a/fire_hydrant",
+    "download": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/fire_hydrant/fire_hydrant_1k.gltf",
+    "author": "Poly Haven",
+    "license": "CC0-1.0",
+    "source_sha256": "aaca81b2904e6e5f1fb10a854c7b9a921232624387d1f8757b5c6bdaedcd9eb0",
+    "sha256": "4330a20471e19640e1ca3b88ef3aac789bd53af2f97c451c9c74dc5d195b5c7d"
+  },
+  {
+    "file": "props/manhole_cover.glb",
+    "source": "https://polyhaven.com/a/water_manhole_cover",
+    "download": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/water_manhole_cover/water_manhole_cover_1k.gltf",
+    "author": "Poly Haven",
+    "license": "CC0-1.0",
+    "source_sha256": "9d692740cb6e70cee977a6ccb54a270271b81250b47468e9ef6387bd58215cf9",
+    "sha256": "b617db6f71f9d702ad3d7717fe05e373b0448dd8ffb20827045618a02432a0a3"
+  },
+  {
+    "file": "props/old_tyre.glb",
+    "source": "https://polyhaven.com/a/old_tyre",
+    "download": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/old_tyre/old_tyre_1k.gltf",
+    "author": "Poly Haven",
+    "license": "CC0-1.0",
+    "source_sha256": "ba7b417eb3dc747c356ac3cd1f125754755684eb664737a9f1fc9e490c0b766e",
+    "sha256": "b18c4eb86316f1026710ccc1e6e0d59aa7a4518c2477b026ed1dddcc90eb5440"
+  },
+  {
+    "file": "props/road_barrier.glb",
+    "source": "https://polyhaven.com/a/concrete_road_barrier",
+    "download": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/concrete_road_barrier/concrete_road_barrier_1k.gltf",
+    "author": "Poly Haven",
+    "license": "CC0-1.0",
+    "source_sha256": "c371e87d303fff3f0c9fbe88520f7837514364e5c66aac3244e115ffa673d061",
+    "sha256": "33e15a13d3df756ad0bc3540fcd255696b7299ce394d936783306cccf5e92028"
+  },
+  {
+    "file": "props/street_bench.glb",
+    "source": "https://polyhaven.com/a/modular_street_seating",
+    "download": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/modular_street_seating/modular_street_seating_1k.gltf",
+    "author": "Poly Haven",
+    "license": "CC0-1.0",
+    "source_sha256": "ae0c5b89927446dd3c3dc8fc021c5a6042448b785f340affaa132307d8a7b18d",
+    "sha256": "682808cd8052faf46bfbdff3e4864a607624371a585b1cd6291d8a5e6ddf58ac"
+  },
+  {
+    "file": "props/street_lamp.glb",
+    "source": "https://polyhaven.com/a/street_lamp_01",
+    "download": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/street_lamp_01/street_lamp_01_1k.gltf",
+    "author": "Poly Haven",
+    "license": "CC0-1.0",
+    "source_sha256": "5d0358ede168b5e04547780b99d8e6d651cbe644e468e67cb505019047cbd5c8",
+    "sha256": "e7321aec1aa5b41fc7b7fe97bb3c524c44e6836c8b61635879b6bcb5c1f58704"
+  },
+  {
+    "file": "props/trash_can.glb",
+    "source": "https://polyhaven.com/a/metal_trash_can",
+    "download": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/metal_trash_can/metal_trash_can_1k.gltf",
+    "author": "Poly Haven",
+    "license": "CC0-1.0",
+    "source_sha256": "ccdc55ecfe43db2174c9257891e92551882a874564bb9a7908cafc5268b46c0c",
+    "sha256": "b802909e0919dec88b9a480700f6ee2a82c86746a64ae2df5ed43558657dfba8"
+  },
+  {
+    "file": "props/utility_box.glb",
+    "source": "https://polyhaven.com/a/utility_box_01",
+    "download": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/utility_box_01/utility_box_01_1k.gltf",
+    "author": "Poly Haven",
+    "license": "CC0-1.0",
+    "source_sha256": "5b9f8c45f2640c9dd831dc3450529e45b24c987208ddcf73010fe717ce8c454e",
+    "sha256": "da46e47a017a94e78360c1d2af38bdbdc69b614b3506a7729bfe97e2e5577656"
+  },
+  {
     "file": "trees/tree_island_a.glb",
     "source": "https://polyhaven.com/a/island_tree_01",
     "download": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/island_tree_01/island_tree_01_1k.gltf",

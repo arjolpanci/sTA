@@ -69,7 +69,7 @@ int main() {
         }
         std::cout<<file.path().filename()<<" size "<<model.size().x<<","<<model.size().y<<","<<model.size().z<<" triangles "<<base.size()/33<<"\n";
     }
-    require(models==39 && characters==9,"Asset catalog is incomplete");
+    require(models==48 && characters==9,"Asset catalog is incomplete");
     AnimationState state;state.update("Walk",.1f);require(state.previous=="Idle" && state.blend<1,"Missing transition");
     state.update("Walk",.1f);require(state.blend==1,"Transition did not finish");
     state.update("Idle",0);require(state.previous=="Walk" && state.time==0,"Transition did not reset clock");
