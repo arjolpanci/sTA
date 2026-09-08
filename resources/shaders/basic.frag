@@ -12,13 +12,30 @@ uniform vec3 color;
 uniform bool useTexture;
 uniform bool facade;
 uniform sampler2D tex;
-uniform float shininess; // 0 disables the specular highlight
+uniform float shininess;    // 0 disables the specular highlight
+uniform bool useNormalMap;
+uniform sampler2D normalMap;
+uniform float alphaCutoff;  // 0 disables the cutout test
 
 // lighting (set once per frame, not per material)
 uniform vec3 lightDir;   // normalized, points toward the light
 uniform vec3 viewPos;
 uniform sampler2D shadowMap;
 uniform bool shadowsEnabled;
+
+// Tangent frame rebuilt from screen-space derivatives, so a normal map costs
+// no extra vertex attribute and no change to Mesh's layout. Degenerate UVs
+// (a stretched or unwrapped face) fall back to the interpolated normal.
+mat3 cotangentFrame(vec3 normal, vec3 fragPos, vec2 uv)
+{
+    vec3 dp1 = dFdx(fragPos), dp2 = dFdy(fragPos);
+    vec2 duv1 = dFdx(uv), duv2 = dFdy(uv);
+    vec3 perp1 = cross(dp2, normal), perp2 = cross(normal, dp1);
+    vec3 tangent = perp1 * duv1.x + perp2 * duv2.x;
+    vec3 bitangent = perp1 * duv1.y + perp2 * duv2.y;
+    float scale = inversesqrt(max(max(dot(tangent, tangent), dot(bitangent, bitangent)), 1e-12));
+    return mat3(tangent * scale, bitangent * scale, normal);
+}
 
 // percentage-closer filtering over a 3x3 texel neighborhood, softening the
 // hard edge a single shadow-map sample would otherwise produce
@@ -53,9 +70,25 @@ void main()
 {
     vec3 base = color * vColor;
     if (useTexture)
-        base *= texture(tex, vUV).rgb;
+    {
+        vec4 texel = texture(tex, vUV);
+        // Cut out before anything else: a discarded leaf fragment should never
+        // reach the lighting or the depth buffer at all
+        if (texel.a < alphaCutoff)
+            discard;
+        base *= texel.rgb;
+    }
 
     vec3 normal = normalize(vNormal);
+    // Leaf cards are drawn double-sided, so half of them face away from their
+    // own normal - lighting them needs the geometric side, not the authored one
+    if (!gl_FrontFacing)
+        normal = -normal;
+    if (useNormalMap)
+    {
+        vec3 tangentNormal = texture(normalMap, vUV).rgb * 2.0 - 1.0;
+        normal = normalize(cotangentFrame(normal, vFragPos, vUV) * tangentNormal);
+    }
     float windowGlow = 0.0;
     if (facade && abs(normal.y) < 0.5)
     {

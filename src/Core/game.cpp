@@ -643,10 +643,13 @@ void Game::render()
         auto drawCollisionBoxWire = [this](const CollisionBox& box, const glm::vec3& color) {
             glm::vec3 center = box.center;
             glm::vec3 size = box.half * 2.0f;
-            m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(center, size, box.yaw), Material{ color });
+            // wireframes read better with the far edges left in, so the box is
+            // drawn double-sided - the renderer owns that state now
+            Material material{ color };
+            material.doubleSided = true;
+            m_renderer->draw(*m_cubeMesh, Mesh::boxMatrix(center, size, box.yaw), material);
         };
 
-        glDisable(GL_CULL_FACE);
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         for (const StaticBox& box : m_world.boxes())
@@ -674,7 +677,6 @@ void Game::render()
         }
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        glEnable(GL_CULL_FACE);
     }
 
     if (m_showImGuiDemo && m_debugUI.visible()) ImGui::ShowDemoWindow(&m_showImGuiDemo);

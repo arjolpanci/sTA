@@ -20,10 +20,21 @@ Renderer::Renderer()
 void Renderer::use(Shader& shader) {
     if(m_active!=&shader){shader.use();m_active=&shader;}
 }
+void Renderer::setCulling(bool enabled) {
+    if(m_culling==enabled)return;
+    m_culling=enabled;
+    if(enabled)glEnable(GL_CULL_FACE);else glDisable(GL_CULL_FACE);
+}
+void Renderer::applyCutout(Shader& shader,const Material& material) {
+    shader.setBool("useTexture",material.albedoMap!=nullptr);
+    shader.setFloat("alphaCutoff",material.alphaCutoff);
+    if(material.albedoMap)material.albedoMap->bind(0);
+    setCulling(!material.doubleSided);
+}
 void Renderer::beginShadowPass(const glm::mat4& lightSpaceMatrix)
 {
     m_shadowFrustum=Frustum(lightSpaceMatrix);
-    m_active=nullptr;
+    m_active=nullptr;setCulling(true);
     for(auto* shader:{&m_shadowShader,&m_skinShadowShader}) {
         use(*shader);shader->setMat4("lightSpaceMatrix",lightSpaceMatrix);
     }
@@ -31,7 +42,15 @@ void Renderer::beginShadowPass(const glm::mat4& lightSpaceMatrix)
 }
 void Renderer::drawShadow(const Mesh& mesh,const glm::mat4& model)
 {
-    use(m_shadowShader);m_shadowShader.setMat4("model",model);mesh.draw();
+    drawShadow(mesh,model,Material{});
+}
+void Renderer::drawShadow(const Mesh& mesh,const glm::mat4& model,const Material& material)
+{
+    use(m_shadowShader);m_shadowShader.setMat4("model",model);
+    // ShadowMap::beginCapture() culls front faces, which would erase a
+    // single-sided leaf card entirely whenever the light faces it.
+    applyCutout(m_shadowShader,material);m_shadowShader.setInt("tex",0);
+    mesh.draw();
 }
 void Renderer::beginFrame(const Camera& camera,float aspect,const glm::mat4& lightSpaceMatrix,
                            const glm::vec3& lightDir,const ShadowMap& shadowMap,bool shadowsEnabled)
@@ -46,8 +65,9 @@ void Renderer::beginFrame(const Camera& camera,float aspect,const glm::mat4& lig
         shader->setMat4("lightSpaceMatrix",lightSpaceMatrix);
         shader->setVec3("lightDir",lightDir);shader->setVec3("viewPos",camera.position());
         shader->setBool("shadowsEnabled",shadowsEnabled);
-        shader->setInt("tex",0);shader->setInt("shadowMap",1);
+        shader->setInt("tex",0);shader->setInt("shadowMap",1);shader->setInt("normalMap",3);
     }
+    setCulling(true);
     m_skinShader.setInt("skinPalette",2);
     shadowMap.bindForSampling(1);
 }
@@ -55,8 +75,12 @@ void Renderer::draw(const Mesh& mesh,const glm::mat4& model,const Material& mate
 {
     use(m_shader);m_shader.setMat4("model",model);m_shader.setVec3("color",material.albedo);
     m_shader.setFloat("shininess",material.shininess);m_shader.setBool("facade",material.facade);
-    m_shader.setBool("useTexture",material.albedoMap!=nullptr);
-    if(material.albedoMap)material.albedoMap->bind(0);
+    applyCutout(m_shader,material);
+    m_shader.setBool("useNormalMap",material.normalMap!=nullptr);
+    if(material.normalMap)material.normalMap->bind(3);
+    // Leave unit 0 current: the terrain and water shaders bind their own
+    // textures there without selecting a unit first.
+    glActiveTexture(GL_TEXTURE0);
     mesh.draw();
 }
 Renderer::Pose::~Pose(){if(texture)glDeleteTextures(1,&texture);if(buffer)glDeleteBuffers(1,&buffer);}
@@ -101,7 +125,8 @@ void Renderer::drawModel(const ModelAsset& asset,const void* instance,const glm:
     auto& shader=shadow?m_skinShadowShader:m_skinShader;use(shader);shader.setMat4("model",model);
     if(!shadow) {
         shader.setVec3("color",glm::vec3(1));shader.setFloat("shininess",0);
-        shader.setBool("facade",false);shader.setBool("useTexture",false);
+        shader.setBool("facade",false);shader.setBool("useTexture",false);shader.setBool("useNormalMap",false);
+        shader.setFloat("alphaCutoff",0);
     }
     mesh->draw();
 }

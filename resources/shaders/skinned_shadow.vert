@@ -1,5 +1,6 @@
 #version 330 core
 layout (location = 0) in vec3 aPos;
+layout (location = 2) in vec2 aUV;
 
 layout (location = 4) in vec4 aJoints;
 layout (location = 5) in vec4 aWeights;
@@ -7,8 +8,11 @@ uniform samplerBuffer skinPalette;
 uniform mat4 lightSpaceMatrix;
 uniform mat4 model;
 
+out vec2 vUV;
+
 void main()
 {
+    vUV = aUV;
     vec4 position = vec4(0.0);
     for (int i = 0; i < 4; ++i) {
         if (aWeights[i] <= 0.0) continue;

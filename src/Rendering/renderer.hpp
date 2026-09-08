@@ -35,6 +35,9 @@ public:
     // Bracket calls to drawShadow() with ShadowMap::beginCapture()/endCapture().
     void beginShadowPass(const glm::mat4& lightSpaceMatrix);
     void drawShadow(const Mesh& mesh, const glm::mat4& model);
+    // Cut-out/double-sided geometry has to be captured the same way it is
+    // shaded, or its depth silhouette is not the shape that gets drawn.
+    void drawShadow(const Mesh& mesh, const glm::mat4& model, const Material& material);
 
     // main pass: full shading, sampling the shadow map captured just before.
     // shadowsEnabled only gates the shader's use of the shadow map - the
@@ -57,7 +60,11 @@ private:
     Shader* m_active=nullptr;
     Frustum m_cameraFrustum, m_shadowFrustum;
     glm::vec3 m_eye{0};
+    bool m_culling=true;
     void use(Shader& shader);
+    void setCulling(bool enabled);
+    // The two passes bind the same material state through different shaders.
+    void applyCutout(Shader& shader, const Material& material);
 
 };
 
