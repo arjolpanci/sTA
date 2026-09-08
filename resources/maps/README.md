@@ -1,4 +1,4 @@
-# Harbor Island (baked asset, version 1)
+# Harbor Island (heightfield v1, scene v2)
 
 This directory is the playable world, not a cache. Commit its files with map edits.
 The game loads them as read-only assets and never calls the authoring tool.
@@ -26,12 +26,16 @@ Files:
   positive Z; columns from negative X to positive X. The grid is centered at 0,0.
 - `island.scene`: versioned text records. `B` is a solid box, `D` a decorative box,
   `R` a ramp, `V` a vehicle with patrol points, `P` a pedestrian with patrol points,
+  `T` an imported tree (`feet.x feet.y feet.z height yaw variant`),
   and `L` an authored road segment for validation and map overlays. Heights are
   absolute metres. Bridge decks remain separate geometry above the seabed.
 - `island-overview.png`: saved north-up terrain/road preview used by the minimap.
 - `island.json`: dimensions, seed, counts and SHA-256 hashes of those three files.
 
-No imported data, textures or third-party asset licenses are needed for this map.
+Scene v2 uses vehicle IDs 0–17 and tree IDs 0–11 from `src/Game/model_catalog.hpp`.
+The game also accepts legacy scene v1 files. Tree records create solid trunk colliders;
+the corresponding imported geometry is batched for rendering. Model assets and their
+CC0 license records are in `resources/models/`.
 The heightmap triangles and physical support queries share the same cell diagonal;
 collision therefore matches the rendered surface rather than a different bilinear
 height approximation. The water shader uses filtered height samples for its visual

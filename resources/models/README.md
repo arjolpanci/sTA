@@ -17,3 +17,14 @@ The model files retain all original animations. No runtime network access is req
 
 Kenney's original license notices are retained alongside the models. The Quaternius pack pages
 linked in the manifest state CC0 and free personal/commercial use.
+
+## Runtime conversion
+
+The loader normalizes models to one unit tall, grounds their feet/wheels, and converts
+material colors to the existing renderer's display color space. Kenney car palette UVs
+are sampled into vertex colors. Actors apply their physical scale at render time.
+Tree placement preserves each source trunk origin (including bent palms) and scales
+the tree to its saved height. Original mesh/animation files are retained for future changes.
+
+`include/cgltf/cgltf.h` is cgltf v1.15, obtained from
+https://github.com/jkuhlmann/cgltf/blob/v1.15/cgltf.h . Its MIT license is embedded in the header.

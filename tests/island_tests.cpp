@@ -1,4 +1,6 @@
 #include "Game/world.hpp"
+#include "Game/model_catalog.hpp"
+#include <set>
 #include "Game/vertical_motion.hpp"
 #include <iostream>
 #include <stdexcept>
@@ -10,6 +12,14 @@ struct Context {
 int main() {
     World world;
     auto require=[](bool ok,const char* message){if(!ok) throw std::runtime_error(message);};
+    std::set<int> cars,trees;
+    for(const auto& spawn:world.vehicleSpawns())cars.insert(spawn.type);
+    for(const auto& tree:world.trees()) {
+        trees.insert(tree.model);
+        require(world.collides(CollisionBox::fromCenterHalf(tree.feet+glm::vec3(0,1,0),{.1f,.1f,.1f})),"Tree trunk collision is missing");
+    }
+    require(cars.size()==VehicleModels.size(),"Not all vehicle models appear in the map");
+    require(trees.size()==TreeModels.size() && world.trees().size()>1000,"Tree variation or saved placement is incomplete");
     require(world.roads().size()>50,"Authored road network is loaded");
     require(world.vehicleSpawns().size()>25,"Island traffic and parked cars are loaded");
     require(world.groundHeightAt(-430,120,13)>11.99f,"Bridge deck supports an actor above the strait");

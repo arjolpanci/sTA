@@ -13,6 +13,7 @@
 #include <imgui.h>
 
 #include "Rendering/mesh.hpp"
+#include "Rendering/model_preview.hpp"
 #include "Rendering/island_renderer.hpp"
 #include "Rendering/scene_renderer.hpp"
 #include "Rendering/renderer.hpp"
@@ -355,6 +356,8 @@ int Game::run(bool smokeTest)
         m_worldTime+=2;
         m_capturePath="smoke-shore-next.ppm";
         render();
+        int previewWidth,previewHeight;glfwGetFramebufferSize(m_window,&previewWidth,&previewHeight);
+        captureModelPreviews(*m_renderer,*m_shadowMap,previewWidth,previewHeight);
         if (glGetError() != GL_NO_ERROR) throw std::runtime_error("OpenGL smoke test failed");
         std::cout << "Startup, mission lifecycle and rendering smoke tests passed: smoke-debug.ppm, smoke-missions.ppm, smoke-city.ppm, smoke-ramp.ppm, smoke-island.ppm, smoke-bridge.ppm, smoke-shore.ppm\n";
         return 0;

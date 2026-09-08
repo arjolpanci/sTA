@@ -16,6 +16,7 @@ add_executable(sTA
 	src/Rendering/shader.cpp
 	src/Rendering/camera.cpp
 	src/Rendering/mesh.cpp
+	src/Rendering/model_preview.cpp
 	src/Rendering/texture.cpp
 	src/Rendering/renderer.cpp
 	src/Rendering/island_renderer.cpp
