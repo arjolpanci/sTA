@@ -133,7 +133,9 @@ def main(output):
                 x, z = xmin+ix*60+30, zmin+iz*60+30
                 park = (label == 'Downtown' and ix == 3 and iz == 3) or (label != 'Downtown' and ix == nx//2 and iz == nz//2)
                 yard = label == 'Downtown' and ix == 1 and iz == 3
-                box(x,elevation,z,44,.16,44,(.56,.57,.55))
+                # The pavement reaches the kerb: leaving a bare verge between
+                # slab and asphalt is what put street furniture on the dirt.
+                box(x,elevation,z,50,.16,50,(.56,.57,.55))
                 if park or yard:
                     box(x,elevation+.17,z,34,.02,34,(.23,.39,.23) if park else (.39,.39,.39),False)
                     if yard:
@@ -154,11 +156,10 @@ def main(output):
                         box(bx,elevation+h+.56,z+3,4,1,5,(.42,.45,.47),False)
                         box(bx,elevation+2.8,z-15.4,12,.3,1.1,(.18,.42,.45) if lot else (.72,.31,.18),False)
                         box(bx,elevation+.16,z-15.02,1.6,2.2,.04,(.12,.19,.22),False)
+                # Street lamps are placed at runtime from the scanned prop set,
+                # against the kerb this pad creates - see World::placeProps().
                 for side in (-1,1):
                     tree(x+side*16.5,elevation+.16,z+17.5)
-                    lx = x+side*20.5
-                    box(lx,elevation+.16,z-16,.18,5.5,.18,(.18,.22,.25))
-                    box(lx,elevation+5.65,z-16.6,.6,.18,1.6,(.95,.88,.63),False)
                 if (ix + iz) % 2 == 0:
                     route = [(x-19,elevation+.16,z-19),(x+19,elevation+.16,z-19),(x+19,elevation+.16,z+19),(x-19,elevation+.16,z+19)]
                     records.append(('P',.4+(ix%3)*.14,.4+(iz%3)*.12,.58,1.5+(ix%3)*.15,len(route),*(v for p in route for v in p)))
@@ -227,8 +228,9 @@ def main(output):
         box(-510,6.8,z,58,1.2,12,(.46,.40,.30))
         for x in (-532,-508,-486):
             for side in (-1,1): box(x,-8,z+side*4,1,14,1,(.3,.29,.26))
-    for type_,pos,yaw in [(1,(5.5,8,12),0),(0,(-12,8,5.5),90),(2,(5.5,8,-18),180),
-                          (0,(395.5,26,0),0),(1,(5.5,32,-330),0),(2,(-628,8,5.5),90)]:
+    # Parked at the kerb, which is now where the pavement actually ends.
+    for type_,pos,yaw in [(1,(3.4,8,12),0),(0,(-12,8,3.4),90),(2,(3.4,8,-18),180),
+                          (0,(393.4,26,0),0),(1,(3.4,32,-330),0),(2,(-628,8,3.4),90)]:
         records.append(('V',type_,yaw,0,1,*pos))
 
     # Patrol routes are stitched from the same curved polylines the roads use.

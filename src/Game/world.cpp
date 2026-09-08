@@ -162,9 +162,32 @@ void World::placeProps()
 
     // One kerbside placement attempt, shared by the lamp cadence and the random
     // clutter: level ground, clear of every carriageway, room to stand.
+    // Walk outward from the carriageway until the ground steps up: that step is
+    // the kerb, and street furniture belongs on the pavement behind it, not on
+    // the strip of dirt between the two.
+    auto kerbOffset = [&](const glm::vec3& middle, const glm::vec3& outward, float roadY, float radius) {
+        for (float step = 0.6f; step <= 7.0f; step += 0.3f)
+        {
+            const glm::vec3 probe = middle + outward*step;
+            if (groundHeightAt(probe.x, probe.z) > roadY + 0.08f)
+                return step + radius + 0.4f; // clear of the kerb edge, whole footprint on the pavement
+        }
+        return -1.0f; // no kerb within reach: a junction mouth, or a rural verge
+    };
+
     auto place = [&](const glm::vec3& middle, const glm::vec3& outward, float roadY, int model, float yaw) {
         const PropModel& prop = PropModels[size_t(model)];
-        const glm::vec3 feet = middle + outward*(prop.radius + 1.2f);
+        float offset = kerbOffset(middle, outward, roadY, prop.radius);
+        if (offset < 0)
+        {
+            // Across the mouth of a junction the search only ever finds more
+            // carriageway, and a lamp in the middle of a crossing is worse than
+            // no lamp. On an open verge there is nothing to step onto and the
+            // prop simply stands back from the asphalt.
+            if (roadClearance(m_roads, middle.x + outward.x*4.0f, middle.z + outward.z*4.0f) < prop.radius + 5.0f) return;
+            offset = prop.radius + 1.2f;
+        }
+        const glm::vec3 feet = middle + outward*offset;
         const float ground = groundHeightAt(feet.x, feet.z);
         // Skip anything the road does not run level with: cliffs, water, and
         // the ground under a bridge.
