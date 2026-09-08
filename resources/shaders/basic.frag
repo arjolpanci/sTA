@@ -24,8 +24,10 @@ uniform vec3 ambientColor; // sky light: what a shadowed surface still receives
 uniform vec3 fogColor;     // horizon haze, matched to the sky
 uniform float night;       // 0 in daylight, 1 after dusk
 uniform vec3 viewPos;
-uniform sampler2D shadowMap;
+uniform sampler2DShadow shadowMap; // comparison sampler: the hardware does the depth test
 uniform bool shadowsEnabled;
+uniform mat4 lightSpaceMatrix;
+uniform float shadowTexelWorld;    // world size of one shadow texel
 
 // Tangent frame rebuilt from screen-space derivatives, so a normal map costs
 // no extra vertex attribute and no change to Mesh's layout. Degenerate UVs
@@ -41,33 +43,37 @@ mat3 cotangentFrame(vec3 normal, vec3 fragPos, vec2 uv)
     return mat3(tangent * scale, bitangent * scale, normal);
 }
 
-// percentage-closer filtering over a 3x3 texel neighborhood, softening the
-// hard edge a single shadow-map sample would otherwise produce
-float calcShadow(vec4 fragPosLightSpace, vec3 normal)
+// Percentage-closer filtering over a rotated 4x4 kernel. Each tap is itself a
+// hardware 2x2 comparison, so this is 64 effective samples, and the per-pixel
+// rotation turns what would be banding into noise the eye reads as a penumbra.
+float calcShadow(vec3 worldPos, vec3 normal, vec3 geometricNormal)
 {
     if (!shadowsEnabled)
         return 0.0;
 
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    projCoords = projCoords * 0.5 + 0.5; // [-1,1] -> [0,1]
+    // Normal-offset bias: push the lookup off the surface along its own normal
+    // instead of biasing depth. Depth bias has to grow with slope until it
+    // detaches the shadow from its caster; this does not.
+    float slope = clamp(1.0 - dot(geometricNormal, lightDir), 0.0, 1.0);
+    vec3 offset = geometricNormal * shadowTexelWorld * (1.2 + 2.6 * slope);
+    vec4 lightSpace = lightSpaceMatrix * vec4(worldPos + offset, 1.0);
 
+    vec3 projCoords = lightSpace.xyz / lightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5; // [-1,1] -> [0,1]
     if (projCoords.z > 1.0)
         return 0.0; // beyond the shadow frustum's far plane: treat as lit
 
-    // slope-scaled bias: grazing angles need more bias to avoid acne
-    float bias = max(0.0025 * (1.0 - dot(normal, lightDir)), 0.0006);
-
-    float shadow = 0.0;
+    float depth = projCoords.z - 0.00045;
     vec2 texelSize = 1.0 / vec2(textureSize(shadowMap, 0));
-    for (int x = -1; x <= 1; ++x)
-    {
-        for (int y = -1; y <= 1; ++y)
-        {
-            float closestDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
-            shadow += (projCoords.z - bias > closestDepth) ? 1.0 : 0.0;
-        }
-    }
-    return shadow / 9.0;
+
+    float angle = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) * 6.2831853;
+    mat2 rotation = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+
+    float lit = 0.0;
+    for (int x = -1; x <= 2; ++x)
+        for (int y = -1; y <= 2; ++y)
+            lit += texture(shadowMap, vec3(projCoords.xy + rotation * (vec2(x, y) - 0.5) * texelSize, depth));
+    return 1.0 - lit / 16.0;
 }
 
 void main()
@@ -115,7 +121,11 @@ void main()
         specular = pow(max(dot(normal, halfway), 0.0), shininess);
     }
 
-    float shadow = calcShadow(vFragPosLightSpace, normal);
+    // The geometric normal drives the bias: a normal-mapped one can point into
+    // the surface and would push the lookup the wrong way.
+    vec3 geometric = normalize(vNormal);
+    if (!gl_FrontFacing) geometric = -geometric;
+    float shadow = calcShadow(vFragPos, normal, geometric);
 
     // ambient represents indirect/sky light, so it isn't blocked by the
     // direct light's shadow - only the diffuse+specular term is

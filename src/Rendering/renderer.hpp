@@ -75,6 +75,7 @@ private:
     Frustum m_cameraFrustum, m_shadowFrustum;
     glm::vec3 m_eye{0};
     bool m_culling=true;
+    float m_shadowTexelWorld=0.05f;
     void use(Shader& shader);
     void setCulling(bool enabled);
     // The two passes bind the same material state through different shaders.

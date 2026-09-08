@@ -70,6 +70,7 @@ void Renderer::beginFrame(const Camera& camera,float aspect,const glm::mat4& lig
                            const Lighting& lighting,const ShadowMap& shadowMap,bool shadowsEnabled)
 {
     setCamera(camera,aspect);
+    m_shadowTexelWorld=shadowMap.texelWorld();
     // Terrain/water own their shaders, so reset the active-program cache at pass boundaries.
     m_active=nullptr;
     for(auto* shader:{&m_shader,&m_skinShader,&m_instanceShader}) {
@@ -83,6 +84,7 @@ void Renderer::beginFrame(const Camera& camera,float aspect,const glm::mat4& lig
         shader->setFloat("night",1.0f-glm::clamp((lighting.sunElevation+.12f)/.22f,0.0f,1.0f));
         shader->setBool("shadowsEnabled",shadowsEnabled);
         shader->setInt("tex",0);shader->setInt("shadowMap",1);shader->setInt("normalMap",3);
+        shader->setFloat("shadowTexelWorld",m_shadowTexelWorld);
     }
     setCulling(true);
     use(m_skinShader);m_skinShader.setInt("skinPalette",2);

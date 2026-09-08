@@ -70,7 +70,8 @@ void IslandRenderer::drawTerrain(const Camera& camera,float aspect,const glm::ma
     m_terrainShader.setVec3("ambientColor",lighting.ambientColor);
     m_terrainShader.setVec3("fogColor",lighting.fogColor);
     m_terrainShader.setBool("shadowsEnabled",enabled);
-    m_terrainShader.setInt("shadowMap",1); shadows.bindForSampling(1);
+    m_terrainShader.setInt("shadowMap",1); m_terrainShader.setFloat("shadowTexelWorld",shadows.texelWorld());
+    shadows.bindForSampling(1);
     Frustum frustum(glm::perspective(glm::radians(60.0f),aspect,.1f,3000.0f)*camera.viewMatrix());
     for(const auto& chunk:m_chunks)
         if(frustum.intersectsSphere(chunk.center,chunk.radius) && glm::length(glm::vec2(chunk.center.x-camera.position().x,chunk.center.z-camera.position().z))<2100)
