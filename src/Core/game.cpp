@@ -105,9 +105,10 @@ bool Game::init()
         if (spawn.speed > 0) {car->maxSpeed=spawn.speed; car->setPatrol(WaypointPath(spawn.route));}
         m_vehicles.push_back(car.get()); m_actors.push_back(std::move(car));
     }
+    int pedestrianModel=0;
     for (const auto& spawn : m_world.pedestrianSpawns())
     {
-        auto ped=std::make_unique<Pedestrian>(spawn.route.front(), WaypointPath(spawn.route), spawn.color);
+        auto ped=std::make_unique<Pedestrian>(spawn.route.front(), WaypointPath(spawn.route), spawn.color, pedestrianModel++);
         ped->walkSpeed=spawn.speed; m_actors.push_back(std::move(ped));
     }
 

@@ -4,9 +4,11 @@
 #include <glm/glm.hpp>
 
 #include "actor.hpp"
+#include "Rendering/model_asset.hpp"
+#include "animation_state.hpp"
 #include "vertical_motion.hpp"
 
-// The playable character, rendered as an articulated box silhouette.
+// Player movement and animation share the fixed simulation timestep.
 class Player : public Actor
 {
 public:
@@ -31,7 +33,8 @@ public:
 
 private:
     bool m_swimming = false;
-    float m_gait = 0.0f;
+    AnimationState m_animation;
+    std::shared_ptr<const ModelAsset> m_model=ModelAsset::load("resources/models/characters/player.glb");
     VerticalMotion m_vertical;
 };
 

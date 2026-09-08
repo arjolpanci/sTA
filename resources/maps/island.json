@@ -10,7 +10,7 @@
     175.21713562856306
   ],
   "buildings": 122,
-  "scene_records": 7976,
+  "scene_records": 5652,
   "vehicles": 30,
   "pedestrians": 34,
   "road_segments": 70,
@@ -22,7 +22,7 @@
   ],
   "sha256": {
     "island.bin": "bd1e78611a6cb6f238667c525ecaacbe08c68a2fa136f41408cb0968fb19e68a",
-    "island.scene": "d153872eac092867312e745fdc0a0b6b44344f6e41ceb680a1d6370a42ad6259",
+    "island.scene": "e7e5985892b76ce44851caf7baff810451e5354dc0b7a38aa5cbc6ab50503b1c",
     "island-overview.png": "668c89a7c887b4d213ccfd45a421686ccc98176e93bad979c8f9edb557b5ec32"
   }
 }

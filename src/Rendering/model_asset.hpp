@@ -9,7 +9,7 @@
 class ModelAsset
 {
 public:
-    explicit ModelAsset(const std::string& path);
+    explicit ModelAsset(const std::string& path, bool centerFootprint = true);
     ~ModelAsset();
     ModelAsset(const ModelAsset&) = delete;
     ModelAsset& operator=(const ModelAsset&) = delete;

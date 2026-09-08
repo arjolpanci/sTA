@@ -117,7 +117,7 @@ struct ModelAsset::Impl {
     }
 };
 
-ModelAsset::ModelAsset(const std::string& path):m(std::make_unique<Impl>()) {
+ModelAsset::ModelAsset(const std::string& path,bool centerFootprint):m(std::make_unique<Impl>()) {
     cgltf_options options{}; cgltf_data* raw=nullptr;
     if(cgltf_parse_file(&options,path.c_str(),&raw)!=cgltf_result_success) throw std::runtime_error("Cannot parse model: "+path);
     m->data.reset(raw);
@@ -171,6 +171,7 @@ ModelAsset::ModelAsset(const std::string& path):m(std::make_unique<Impl>()) {
     for(size_t i=0;i<vertices.size();i+=11) {glm::vec3 p(vertices[i],vertices[i+1],vertices[i+2]);min=glm::min(min,p);max=glm::max(max,p);}
     if(max.y-min.y<.00001f) throw std::runtime_error("Degenerate model: "+path);
     m->scale=1/(max.y-min.y);m->offset={(min.x+max.x)*.5f,min.y,(min.z+max.z)*.5f};m->dimensions=(max-min)*m->scale;
+    if(!centerFootprint){m->offset.x=0;m->offset.z=0;}
 }
 ModelAsset::~ModelAsset()=default;
 glm::vec3 ModelAsset::size() const{return m->dimensions;}

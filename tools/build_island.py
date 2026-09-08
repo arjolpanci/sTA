@@ -75,9 +75,13 @@ def main(output):
             roads.append((a, b, width))
 
     def tree(x, y, z, size=1):
-        box(x, y, z, .65, 3.1*size, .65, (.32,.23,.16))
-        box(x, y+2.8*size, z, 3.8*size, 3.6*size, 3.8*size, (.20,.38,.22), False)
-        box(x+.3, y+5.4*size, z, 2.7*size, 1.6*size, 2.7*size, (.27,.45,.25), False)
+        # Stable variety; palms by low coastal terrain, pines in the highlands.
+        seed = (int(x*1000)*73856093 ^ int(z*1000)*19349663) & 0xffffffff
+        seed ^= seed >> 16
+        seed = (seed * 0x45d9f3b) & 0xffffffff
+        seed ^= seed >> 16
+        variant = (10 + seed % 2) if abs(x) > 650 and y < 15 else (6 + seed % 4) if y > 30 else seed % 6
+        records.append(('T', x, y, z, 7*size, seed % 360, variant))
 
     def district(cx, cz, nx, nz, elevation, label, low_rise=False):
         # Each district is a level engineered terrace, blended into the hills.
@@ -247,9 +251,13 @@ def main(output):
         c,d=heights[(iz+1)*N+ix],heights[(iz+1)*N+ix+1]
         return a+u*(b-a)+v*(c-a) if u+v<=1 else d+(1-u)*(c-d)+(1-v)*(b-d)
     # Routes retain bridge/sidewalk elevations, but never start below a sampled slope.
+    vehicle_variant = 0
     for index,record in enumerate(records):
         if record[0] not in ('V','P'): continue
         values=list(record)
+        if record[0] == 'V':
+            values[1] = vehicle_variant % 18
+            vehicle_variant += 1
         start=5 if record[0]=='V' else 6
         for k in range(start,len(values),3):
             values[k+1]=max(values[k+1],baked_height(values[k],values[k+2]))
@@ -257,7 +265,7 @@ def main(output):
     blob=b'STAISL1\n'+struct.pack('<Ifff',N,STEP,SEA,float(SEED))
     blob+=struct.pack('<%sf'%len(heights),*heights)+struct.pack('<%sf'%len(masks),*masks)
     (output/'island.bin').write_bytes(blob)
-    scene='STA_SCENE 1\n'+'\n'.join(' '.join(str(round(v,4)) if isinstance(v,float) else str(v) for v in r) for r in records)+'\n'
+    scene='STA_SCENE 2\n'+'\n'.join(' '.join(str(round(v,4)) if isinstance(v,float) else str(v) for v in r) for r in records)+'\n'
     (output/'island.scene').write_text(scene)
     # Lossless overview PNG, made from the same baked height and road data.
     scan=bytearray()

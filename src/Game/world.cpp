@@ -1,4 +1,5 @@
 #include "world.hpp"
+#include "model_catalog.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -27,7 +28,7 @@ World::World()
 {
     std::ifstream file("resources/maps/island.scene");
     std::string magic; int version;
-    if (!(file >> magic >> version) || magic != "STA_SCENE" || version != 1)
+    if (!(file >> magic >> version) || magic != "STA_SCENE" || (version != 1 && version != 2))
         throw std::runtime_error("Missing or unsupported baked island scene");
     std::string line;
     std::getline(file, line);
@@ -55,6 +56,16 @@ World::World()
                 m_colliders.push_back(CollisionBox::fromCenterHalf(box.center, box.size*.5f, box.yaw));
             }
         }
+        else if (type == 'T')
+        {
+            TreeSpawn tree; tree.feet=vec(); row >> tree.height >> tree.yaw >> tree.model;
+            if(tree.height<=0 || tree.model<0 || tree.model>=int(TreeModels.size())) throw std::runtime_error("Invalid baked tree");
+            m_trees.push_back(tree);
+            float trunkHeight=tree.height*3.1f/7.0f;
+            StaticBox trunk{tree.feet+glm::vec3(0,trunkHeight*.5f,0),{.65f,trunkHeight,.65f},{.32f,.23f,.16f},false,0,true};
+            m_boxes.push_back(trunk);
+            m_colliders.push_back(CollisionBox::fromCenterHalf(trunk.center,trunk.size*.5f));
+        }
         else if (type == 'R')
         {
             Ramp r;
@@ -73,7 +84,7 @@ World::World()
         {
             VehicleSpawn spawn; row >> spawn.type >> spawn.yaw >> spawn.speed;
             spawn.route=route();
-            if (spawn.type<0 || spawn.type>2 || spawn.speed<0) throw std::runtime_error("Invalid baked vehicle");
+            if (spawn.type<0 || spawn.type>=int(VehicleModels.size()) || spawn.speed<0) throw std::runtime_error("Invalid baked vehicle");
             m_vehicleSpawns.push_back(spawn);
         }
         else if (type == 'P')

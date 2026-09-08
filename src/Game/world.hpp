@@ -18,6 +18,7 @@ struct StaticBox
     glm::vec3 color;
     bool facade = false;
     float yaw = 0;
+    bool modelProxy = false;
 };
 
 // Walkable wedge. Its high end and sides block entry below the surface.
@@ -34,6 +35,8 @@ struct Ramp
     std::optional<float> heightAt(float x, float z) const;
 };
 
+struct TreeSpawn { glm::vec3 feet; float height, yaw; int model; };
+
 struct Road { float width; std::vector<glm::vec3> route; };
 struct VehicleSpawn { int type; float yaw, speed; std::vector<glm::vec3> route; };
 struct PedestrianSpawn { glm::vec3 color; float speed; std::vector<glm::vec3> route; };
@@ -43,6 +46,7 @@ class World
 {
 public:
     World();
+    const std::vector<TreeSpawn>& trees() const { return m_trees; }
     const std::vector<Road>& roads() const { return m_roads; }
     const Terrain& terrain() const { return m_terrain; }
     const std::vector<VehicleSpawn>& vehicleSpawns() const { return m_vehicleSpawns; }
@@ -68,6 +72,7 @@ private:
     static int64_t cellKey(int x, int z);
     Terrain m_terrain;
     std::vector<Road> m_roads;
+    std::vector<TreeSpawn> m_trees;
     std::unordered_map<int64_t, std::vector<size_t>> m_cells;
     std::vector<VehicleSpawn> m_vehicleSpawns;
     std::vector<PedestrianSpawn> m_pedestrianSpawns;

@@ -10,55 +10,14 @@
 
 #include "Core/input.hpp"
 
-namespace
-{
-    const glm::vec3 WHEEL_COLOR(0.12f, 0.12f, 0.12f);
-    const glm::vec3 WINDOW_COLOR(0.20f, 0.25f, 0.32f);
-
-    void addWheels(std::vector<VehiclePart>& parts, float halfTrack, float axleZ)
-    {
-        const glm::vec3 wheelSize(0.3f, 0.6f, 0.6f);
-        parts.push_back({ { -halfTrack, 0.3f,  axleZ }, wheelSize, WHEEL_COLOR });
-        parts.push_back({ {  halfTrack, 0.3f,  axleZ }, wheelSize, WHEEL_COLOR });
-        parts.push_back({ { -halfTrack, 0.3f, -axleZ }, wheelSize, WHEEL_COLOR });
-        parts.push_back({ {  halfTrack, 0.3f, -axleZ }, wheelSize, WHEEL_COLOR });
-    }
-}
-
 Vehicle::Vehicle(VehicleType type, const glm::vec3& position, float yaw)
-    : m_spawnPosition(position), m_spawnYaw(yaw), m_position(position), m_yaw(yaw)
+    : m_spawnPosition(position), m_spawnYaw(yaw), m_position(position), m_yaw(yaw), m_type(type)
 {
-    switch (type)
-    {
-    case VehicleType::Sedan:
-    {
-        const glm::vec3 body(0.15f, 0.25f, 0.60f);
-        m_parts.push_back({ { 0.0f, 0.55f,  0.00f }, { 1.8f, 0.60f, 4.2f }, body });         // chassis
-        m_parts.push_back({ { 0.0f, 1.10f, -0.35f }, { 1.6f, 0.55f, 2.0f }, WINDOW_COLOR, 32.0f }); // cabin
-        addWheels(m_parts, 0.8f, 1.35f);
-        m_boundsSize = { 1.9f, 1.6f, 4.4f };
-        break;
-    }
-    case VehicleType::Taxi:
-    {
-        const glm::vec3 body(0.90f, 0.75f, 0.10f);
-        m_parts.push_back({ { 0.0f, 0.55f,  0.00f }, { 1.8f, 0.60f, 4.2f }, body });
-        m_parts.push_back({ { 0.0f, 1.10f, -0.35f }, { 1.6f, 0.55f, 2.0f }, WINDOW_COLOR, 32.0f });
-        m_parts.push_back({ { 0.0f, 1.47f, -0.35f }, { 0.45f, 0.18f, 0.35f }, { 0.9f, 0.9f, 0.85f } }); // roof sign
-        addWheels(m_parts, 0.8f, 1.35f);
-        m_boundsSize = { 1.9f, 1.7f, 4.4f };
-        break;
-    }
-    case VehicleType::Van:
-    {
-        const glm::vec3 body(0.85f, 0.85f, 0.82f);
-        m_parts.push_back({ { 0.0f, 1.15f, -0.50f }, { 2.0f, 1.7f, 3.4f }, body });  // cargo box
-        m_parts.push_back({ { 0.0f, 0.75f,  1.75f }, { 1.9f, 0.9f, 1.3f }, body });  // cab/hood
-        addWheels(m_parts, 0.85f, 1.55f);
-        m_boundsSize = { 2.1f, 2.0f, 4.8f };
-        break;
-    }
-    }
+    m_model=ModelAsset::load("resources/models/cars/"+std::string(VehicleModels.at(static_cast<size_t>(type)))+".glb");
+    auto size=m_model->size();
+    // Preserve source proportions and keep all variants within street lane widths.
+    m_modelScale=std::min(1.9f/size.x,4.8f/size.z);
+    m_boundsSize=size*m_modelScale;
 }
 
 glm::vec3 Vehicle::forward() const
@@ -149,24 +108,14 @@ void Vehicle::update(const ActorContext& ctx, float dt)
     m_surfaceNormal = glm::normalize(glm::mix(m_surfaceNormal, normal, std::min(1.0f, dt * 12.0f)));
 }
 
-void Vehicle::render(Renderer& renderer, const Mesh& cubeMesh, bool /*controlled*/) const
+void Vehicle::render(Renderer& renderer, const Mesh& /*cubeMesh*/, bool /*controlled*/) const
 {
-    glm::mat4 carMatrix = modelMatrix();
-    for (const VehiclePart& part : m_parts)
-    {
-        glm::mat4 model = glm::scale(glm::translate(carMatrix, part.offset), part.size);
-        renderer.draw(cubeMesh, model, Material{ part.color, nullptr, part.shininess });
-    }
+    renderer.drawModel(*m_model,this,glm::scale(modelMatrix(),glm::vec3(m_modelScale)),AnimationState{},false);
 }
 
-void Vehicle::renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool /*controlled*/) const
+void Vehicle::renderShadow(Renderer& renderer, const Mesh& /*cubeMesh*/, bool /*controlled*/) const
 {
-    glm::mat4 carMatrix = modelMatrix();
-    for (const VehiclePart& part : m_parts)
-    {
-        glm::mat4 model = glm::scale(glm::translate(carMatrix, part.offset), part.size);
-        renderer.drawShadow(cubeMesh, model);
-    }
+    renderer.drawModel(*m_model,this,glm::scale(modelMatrix(),glm::vec3(m_modelScale)),AnimationState{},true);
 }
 
 CollisionBox Vehicle::collisionBox() const

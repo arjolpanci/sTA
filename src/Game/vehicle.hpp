@@ -6,6 +6,8 @@
 #include <glm/glm.hpp>
 
 #include "actor.hpp"
+#include "Rendering/model_asset.hpp"
+#include "model_catalog.hpp"
 #include "vertical_motion.hpp"
 #include "waypoint_path.hpp"
 
@@ -13,20 +15,13 @@ enum class VehicleType
 {
     Sedan,
     Taxi,
-    Van
+    Van,
+    HatchbackSports, SedanSports, SUV, LuxurySUV, Police, Ambulance,
+    Delivery, DeliveryFlat, Truck, TruckFlat, Firetruck, GarbageTruck,
+    Race, RaceFuture, TractorPolice
 };
 
-// One box of a car model, in the vehicle's local space
-// (origin at the center of the footprint, on the ground, forward = +Z).
-struct VehiclePart
-{
-    glm::vec3 offset;
-    glm::vec3 size;
-    glm::vec3 color;
-    float shininess = 0.0f; // > 0 for glossy parts like windows
-};
-
-// A car built out of boxes. Three ways to move: player-controlled (reads
+// An imported car. Three ways to move: player-controlled (reads
 // real input, exactly like before), traffic AI (self-steers toward a
 // WaypointPath - see setPatrol()), or parked (neither, coasts to rest). Which
 // one applies is decided fresh each frame: ctx.controlled wins if true,
@@ -50,7 +45,7 @@ public:
 
     void takeControl() { m_path.reset(); maxSpeed = 20.0f; }
 
-    const std::vector<VehiclePart>& parts() const { return m_parts; }
+    const char* modelName() const { return VehicleModels[static_cast<size_t>(m_type)]; }
     glm::vec3 position() const { return m_position; }
     float yaw() const { return m_yaw; }
     float speed() const { return m_speed; }
@@ -76,7 +71,9 @@ private:
     float m_yaw;
     float m_speed = 0.0f; // signed: positive = forward, negative = reverse
     glm::vec3 m_boundsSize{ 0.0f }; // overall collision box (unrotated)
-    std::vector<VehiclePart> m_parts;
+    VehicleType m_type;
+    std::shared_ptr<const ModelAsset> m_model;
+    float m_modelScale=1;
     std::optional<WaypointPath> m_path; // set => this vehicle is traffic, not a parked decoration
     VerticalMotion m_vertical;
 };

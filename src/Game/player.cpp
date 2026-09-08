@@ -25,6 +25,7 @@ void Player::update(const ActorContext& ctx, float dt)
     if (ctx.input.keyDown(GLFW_KEY_D)) dir += right;
     if (ctx.input.keyDown(GLFW_KEY_A)) dir -= right;
 
+    float movedSpeed=0;
     if (glm::dot(dir, dir) > 0.0f)
     {
         dir = glm::normalize(dir);
@@ -36,8 +37,11 @@ void Player::update(const ActorContext& ctx, float dt)
 
         glm::vec3 previous = position;
         moveHorizontal(position, delta, m_vertical.grounded, [this]() { return collisionBox(); }, ctx);
-        m_gait += glm::length(position - previous) * 7.0f;
+        movedSpeed=dt>0?glm::length(glm::vec2(position.x-previous.x,position.z-previous.z))/dt:0;
     }
+
+    m_animation.update(movedSpeed>.1f?(movedSpeed>walkSpeed+1?"Run":"Walk"):"Idle",dt,
+                       movedSpeed>.1f?std::clamp(movedSpeed/(movedSpeed>walkSpeed+1?runSpeed:walkSpeed),.5f,1.5f):1);
 
     // vertical: gravity, jumping, and following the ground - flat, a ramp,
     // or a rooftop - underfoot
@@ -55,7 +59,7 @@ void Player::render(Renderer& renderer, const Mesh& cubeMesh, bool controlled) c
     if (!controlled)
         return; // hidden while riding in a vehicle
 
-    drawCharacter(renderer, cubeMesh, position, size.y, yaw, glm::vec3(0.85f, 0.30f, 0.20f), m_gait, false);
+    drawCharacter(renderer, *m_model, this, position, size.y, yaw, m_animation, false);
 }
 
 void Player::renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool controlled) const
@@ -63,7 +67,7 @@ void Player::renderShadow(Renderer& renderer, const Mesh& cubeMesh, bool control
     if (!controlled)
         return;
 
-    drawCharacter(renderer, cubeMesh, position, size.y, yaw, glm::vec3(0.85f, 0.30f, 0.20f), m_gait, true);
+    drawCharacter(renderer, *m_model, this, position, size.y, yaw, m_animation, true);
 }
 
 CollisionBox Player::collisionBox() const
