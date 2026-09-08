@@ -1,0 +1,322 @@
+[
+  {
+    "file": "characters/player.glb",
+    "source": "https://quaternius.com/packs/ultimatemodularcharacters.html",
+    "download": "https://static.poly.pizza/90a9e2d4-053f-42f1-99a2-8f5e1180ea7f.glb",
+    "author": "Quaternius",
+    "license": "CC0-1.0",
+    "sha256": "fea7e71271203e7073f1a073fa1208de7402df276f87f80e149bf7589b5d46b4"
+  },
+  {
+    "file": "characters/men-0.glb",
+    "source": "https://quaternius.com/packs/animatedmen.html",
+    "download": "https://static.poly.pizza/66b57880-bcb0-479a-8d72-5c3e88afaa39.glb",
+    "author": "Quaternius",
+    "license": "CC0-1.0",
+    "sha256": "31ff1539e7a9a209d4eb1107e696d798fedc7e35d84a58bbabfdc0f1b8b73763"
+  },
+  {
+    "file": "characters/men-1.glb",
+    "source": "https://quaternius.com/packs/animatedmen.html",
+    "download": "https://static.poly.pizza/3746be88-6799-4817-929b-6bc067c47caa.glb",
+    "author": "Quaternius",
+    "license": "CC0-1.0",
+    "sha256": "dad8fa3ca2bc7760892f9ff47f544941179e50acb2aa772cf9f035154a37fc58"
+  },
+  {
+    "file": "characters/men-2.glb",
+    "source": "https://quaternius.com/packs/animatedmen.html",
+    "download": "https://static.poly.pizza/985eacbf-9dde-44b7-9270-4e35c8400b13.glb",
+    "author": "Quaternius",
+    "license": "CC0-1.0",
+    "sha256": "40c62848350df6d13cc6eed20f30c3406a7761542236d8a9f6c3a4060d005e97"
+  },
+  {
+    "file": "characters/men-3.glb",
+    "source": "https://quaternius.com/packs/animatedmen.html",
+    "download": "https://static.poly.pizza/e6019b9f-aed0-400c-8df4-ce5b648e9b82.glb",
+    "author": "Quaternius",
+    "license": "CC0-1.0",
+    "sha256": "48536b0e0ea375f0831dbf5154b4c2eafda8b6c9c19ba0996dd298f2fcc9164c"
+  },
+  {
+    "file": "characters/women-0.glb",
+    "source": "https://quaternius.com/packs/animatedwomen.html",
+    "download": "https://static.poly.pizza/51d5abdd-bb87-4b8d-9967-21738ffb8437.glb",
+    "author": "Quaternius",
+    "license": "CC0-1.0",
+    "sha256": "99c4df0aaabd19022809facc68f5fb5f564d35df3a9893c273a31fdaacf68e96"
+  },
+  {
+    "file": "characters/women-1.glb",
+    "source": "https://quaternius.com/packs/animatedwomen.html",
+    "download": "https://static.poly.pizza/906a0cbe-b0a4-4312-b898-0f974b6f6771.glb",
+    "author": "Quaternius",
+    "license": "CC0-1.0",
+    "sha256": "bae371b11e0dcd5dbd26442025567ca9f7041781f3410259d6ec379bffcbac27"
+  },
+  {
+    "file": "characters/women-2.glb",
+    "source": "https://quaternius.com/packs/animatedwomen.html",
+    "download": "https://static.poly.pizza/9a6a3e55-23ce-4d5c-89bc-7d3f30307ed0.glb",
+    "author": "Quaternius",
+    "license": "CC0-1.0",
+    "sha256": "9809532f4562ebfd3976bd96eeebd1efc1008d781aa71a15048db5bf5ae7344c"
+  },
+  {
+    "file": "characters/women-3.glb",
+    "source": "https://quaternius.com/packs/animatedwomen.html",
+    "download": "https://static.poly.pizza/a642af96-e239-4c5f-b50d-7661ff51deec.glb",
+    "author": "Quaternius",
+    "license": "CC0-1.0",
+    "sha256": "53db49ba84193beb60173e94396764c86f7805752582a81dfdfd7f0889a10783"
+  },
+  {
+    "file": "cars/sedan.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/sedan.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "b532ea7d2c59f7f6b22b138cf1955218a2c1898f1cea932af4d3fd563c3959b7"
+  },
+  {
+    "file": "cars/taxi.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/taxi.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "3803539718ffd3b84b515dbce8ed6b489f1ff5be58edb1903d2c5db5c584bdc7"
+  },
+  {
+    "file": "cars/van.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/van.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "ed4ed56e8e5ed98db050af09ed2062b3b6bb7b93eab1e563cb6774b387b233a1"
+  },
+  {
+    "file": "cars/hatchback-sports.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/hatchback-sports.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "bd5c9d4c3b4bdd254a66b8426563a68b1487ae7a5076df3a2488e6ffed7be64f"
+  },
+  {
+    "file": "cars/sedan-sports.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/sedan-sports.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "2889c428ca1dd9c975c3ff760eb8757883490410555ab60b818f712f583826d6"
+  },
+  {
+    "file": "cars/suv.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/suv.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "9df31f6e89e927a8176fc792aa125f0b19dc1ba29d2025bfef7c4f4d6ab1778a"
+  },
+  {
+    "file": "cars/suv-luxury.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/suv-luxury.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "9e2a79dc050189d4555a88d2e9da0f30ff946ba74f1d43b5b3bda3c193d1f7d7"
+  },
+  {
+    "file": "cars/police.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/police.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "a617b880594f56239b7ac4cf6fd4d74ebdae3ba6c5d842e77c76a5906eff352a"
+  },
+  {
+    "file": "cars/ambulance.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/ambulance.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "9e429e2b6202c0d78d0c38b2adbaae6b77716bb2a0f6fbb2811556e1fb31edba"
+  },
+  {
+    "file": "cars/delivery.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/delivery.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "426a3e3a2c242c05c889b1445ba02ef95b2c8b7cd6f597e1275ef736a826014b"
+  },
+  {
+    "file": "cars/delivery-flat.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/delivery-flat.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "2973152df7699767692ce890b3a0845a11333a52a23aa74b86a12ed443254c1b"
+  },
+  {
+    "file": "cars/truck.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/truck.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "5e1bc66c343501dd7d5734b57e672dd949bf95d7abdce680c6508cef99d374f8"
+  },
+  {
+    "file": "cars/truck-flat.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/truck-flat.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "4279862f2442e96c6603c514edf50bfb932707545695d8c4747611cd3796cf3b"
+  },
+  {
+    "file": "cars/firetruck.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/firetruck.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "c0c0a22809316536468da7e9c7f57b8ec1a8e387ec3a1cde032976c6d8a6c7a4"
+  },
+  {
+    "file": "cars/garbage-truck.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/garbage-truck.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "6f2943e0ba4c6d86eb69a9243224259d6e0f169f474228439cda0579d49d3509"
+  },
+  {
+    "file": "cars/race.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/race.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "e1408c4c6e135f5a39c5f34cbfbcac9ae21c5c491e793fdee74bccac8334d942"
+  },
+  {
+    "file": "cars/race-future.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/race-future.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "869e2a58d2c12de474e824aff137334491b8f234b97127cf23f1ea04e42deec6"
+  },
+  {
+    "file": "cars/tractor-police.glb",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/tractor-police.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "25cd7801798fd1c81bb82cd8e9d5ec1ec1797b9fb720304efff5e6cbc7949142"
+  },
+  {
+    "file": "trees/tree_oak.glb",
+    "source": "https://kenney.nl/assets/nature-kit",
+    "download": "Models/GLTF format/tree_oak.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "d7fd8773674928c50c11b66d12c636d49bdcc15a8b1c7fbb98e6f63a3439a3f3"
+  },
+  {
+    "file": "trees/tree_default.glb",
+    "source": "https://kenney.nl/assets/nature-kit",
+    "download": "Models/GLTF format/tree_default.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "562d29638c902de3c7bee465d3a53bb77117efbc392ae04ed894faf6b5dc691d"
+  },
+  {
+    "file": "trees/tree_detailed.glb",
+    "source": "https://kenney.nl/assets/nature-kit",
+    "download": "Models/GLTF format/tree_detailed.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "c041daf2f0fb1d49e4325227cbcd58667adbe51e9b55e8c1f0a94b74cc521b3b"
+  },
+  {
+    "file": "trees/tree_fat.glb",
+    "source": "https://kenney.nl/assets/nature-kit",
+    "download": "Models/GLTF format/tree_fat.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "84b262c5dda3a91ac6c95f9d8b23a0ebbb1951d678c0e1375d3e32623cc43ee2"
+  },
+  {
+    "file": "trees/tree_tall.glb",
+    "source": "https://kenney.nl/assets/nature-kit",
+    "download": "Models/GLTF format/tree_tall.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "3515a8826044d91e84e011186c86878f62024a487a079b4e32c9ac2e71994411"
+  },
+  {
+    "file": "trees/tree_thin.glb",
+    "source": "https://kenney.nl/assets/nature-kit",
+    "download": "Models/GLTF format/tree_thin.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "f0f1f6861fe0446963d3be216cc628324f538bb0841bc9a8e14140313f64e2f3"
+  },
+  {
+    "file": "trees/tree_pineDefaultA.glb",
+    "source": "https://kenney.nl/assets/nature-kit",
+    "download": "Models/GLTF format/tree_pineDefaultA.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "60d8f352fa3659ed275e06cbddfecf8f92c8effe2977c2f2d7b29b6c9b582e46"
+  },
+  {
+    "file": "trees/tree_pineDefaultB.glb",
+    "source": "https://kenney.nl/assets/nature-kit",
+    "download": "Models/GLTF format/tree_pineDefaultB.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "a752ea5775c6fb17513f764d57ead534f44dfdd85188b842995ac9ba0e7065c1"
+  },
+  {
+    "file": "trees/tree_pineTallA.glb",
+    "source": "https://kenney.nl/assets/nature-kit",
+    "download": "Models/GLTF format/tree_pineTallA.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "e0a56eb196d8a64ba86c7304d607136e17e6f9ad748dffcf86bd53b18b91b196"
+  },
+  {
+    "file": "trees/tree_pineRoundC.glb",
+    "source": "https://kenney.nl/assets/nature-kit",
+    "download": "Models/GLTF format/tree_pineRoundC.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "29080a4935bae6b4ab29066f22c99c58f88b23ce4e2f79b4dcbb5e76de73f69d"
+  },
+  {
+    "file": "trees/tree_palm.glb",
+    "source": "https://kenney.nl/assets/nature-kit",
+    "download": "Models/GLTF format/tree_palm.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "27bbb23d26ed788d84de6df2f7fab0acc3fe0ff16c7d08cdcfa1fffcb11de324"
+  },
+  {
+    "file": "trees/tree_palmBend.glb",
+    "source": "https://kenney.nl/assets/nature-kit",
+    "download": "Models/GLTF format/tree_palmBend.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "8af9dae16ce3c03183f9457996ebdd135167199514e8f4f944ee2bd82828d5c9"
+  },
+  {
+    "file": "cars/Textures/colormap.png",
+    "source": "https://kenney.nl/assets/car-kit",
+    "download": "Models/GLB format/Textures/colormap.png",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5"
+  }
+]
