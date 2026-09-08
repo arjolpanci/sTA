@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <memory>
 #include <map>
+#include <vector>
 #include "Game/animation_state.hpp"
 #include "shader.hpp"
 #include "material.hpp"
@@ -11,6 +12,7 @@
 
 class Mesh;
 class ModelAsset;
+class Texture;
 class Camera;
 class ShadowMap;
 
@@ -48,13 +50,19 @@ public:
     void draw(const Mesh& mesh, const glm::mat4& model, const Material& material);
 
 private:
+    // One GPU mesh per glTF material, plus the textures those materials name.
+    struct Model {
+        struct Surface { std::unique_ptr<Mesh> mesh; Material material; };
+        std::vector<Surface> surfaces;
+        std::map<int,std::unique_ptr<Texture>> textures;
+    };
     struct Pose {
         const ModelAsset* asset=nullptr;
         AnimationState animation;
         unsigned int buffer=0, texture=0;
         ~Pose();
     };
-    std::map<const ModelAsset*,std::unique_ptr<Mesh>> m_models;
+    std::map<const ModelAsset*,Model> m_models;
     std::map<const void*,Pose> m_poses;
     Shader m_shader, m_shadowShader, m_skinShader, m_skinShadowShader;
     Shader* m_active=nullptr;
@@ -65,6 +73,8 @@ private:
     void setCulling(bool enabled);
     // The two passes bind the same material state through different shaders.
     void applyCutout(Shader& shader, const Material& material);
+    void bindMaterial(Shader& shader, const Material& material, bool shadowPass);
+    const Model& modelFor(const ModelAsset& asset);
 
 };
 

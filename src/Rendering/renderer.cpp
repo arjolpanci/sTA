@@ -31,6 +31,16 @@ void Renderer::applyCutout(Shader& shader,const Material& material) {
     if(material.albedoMap)material.albedoMap->bind(0);
     setCulling(!material.doubleSided);
 }
+void Renderer::bindMaterial(Shader& shader,const Material& material,bool shadowPass) {
+    applyCutout(shader,material);shader.setInt("tex",0);
+    if(shadowPass) {glActiveTexture(GL_TEXTURE0);return;} // depth-only: color and normals are not read
+    shader.setVec3("color",material.albedo);shader.setFloat("shininess",material.shininess);
+    shader.setBool("facade",material.facade);shader.setBool("useNormalMap",material.normalMap!=nullptr);
+    if(material.normalMap)material.normalMap->bind(3);
+    // Leave unit 0 current: the terrain and water shaders bind their own
+    // textures there without selecting a unit first.
+    glActiveTexture(GL_TEXTURE0);
+}
 void Renderer::beginShadowPass(const glm::mat4& lightSpaceMatrix)
 {
     m_shadowFrustum=Frustum(lightSpaceMatrix);
@@ -49,7 +59,7 @@ void Renderer::drawShadow(const Mesh& mesh,const glm::mat4& model,const Material
     use(m_shadowShader);m_shadowShader.setMat4("model",model);
     // ShadowMap::beginCapture() culls front faces, which would erase a
     // single-sided leaf card entirely whenever the light faces it.
-    applyCutout(m_shadowShader,material);m_shadowShader.setInt("tex",0);
+    bindMaterial(m_shadowShader,material,true);
     mesh.draw();
 }
 void Renderer::beginFrame(const Camera& camera,float aspect,const glm::mat4& lightSpaceMatrix,
@@ -73,14 +83,8 @@ void Renderer::beginFrame(const Camera& camera,float aspect,const glm::mat4& lig
 }
 void Renderer::draw(const Mesh& mesh,const glm::mat4& model,const Material& material)
 {
-    use(m_shader);m_shader.setMat4("model",model);m_shader.setVec3("color",material.albedo);
-    m_shader.setFloat("shininess",material.shininess);m_shader.setBool("facade",material.facade);
-    applyCutout(m_shader,material);
-    m_shader.setBool("useNormalMap",material.normalMap!=nullptr);
-    if(material.normalMap)material.normalMap->bind(3);
-    // Leave unit 0 current: the terrain and water shaders bind their own
-    // textures there without selecting a unit first.
-    glActiveTexture(GL_TEXTURE0);
+    use(m_shader);m_shader.setMat4("model",model);
+    bindMaterial(m_shader,material,false);
     mesh.draw();
 }
 Renderer::Pose::~Pose(){if(texture)glDeleteTextures(1,&texture);if(buffer)glDeleteBuffers(1,&buffer);}
@@ -94,10 +98,10 @@ void Renderer::drawModel(const ModelAsset& asset,const void* instance,const glm:
     float radius=(asset.animated()?1.7f:glm::length(asset.size())*.5f)*scale;
     if(!visibleSphere(center,radius,shadow)){++stats.culledModels;return;}
     ++stats.modelDraws;
-    auto& mesh=m_models[&asset];
-    if(!mesh)mesh=std::make_unique<Mesh>(asset.animated()?asset.skinVertices():asset.vertices(),true,asset.animated());
+    const auto& built=modelFor(asset);
     if(!asset.animated()) {
-        if(shadow)drawShadow(*mesh,model);else draw(*mesh,model,Material{});
+        for(const auto& surface:built.surfaces)
+            if(shadow)drawShadow(*surface.mesh,model,surface.material);else draw(*surface.mesh,model,surface.material);
         return;
     }
     auto sampled=animation;
@@ -123,12 +127,41 @@ void Renderer::drawModel(const ModelAsset& asset,const void* instance,const glm:
     }
     glActiveTexture(GL_TEXTURE2);glBindTexture(GL_TEXTURE_BUFFER,pose.texture);
     auto& shader=shadow?m_skinShadowShader:m_skinShader;use(shader);shader.setMat4("model",model);
-    if(!shadow) {
-        shader.setVec3("color",glm::vec3(1));shader.setFloat("shininess",0);
-        shader.setBool("facade",false);shader.setBool("useTexture",false);shader.setBool("useNormalMap",false);
-        shader.setFloat("alphaCutoff",0);
+    for(const auto& surface:built.surfaces) {
+        bindMaterial(shader,surface.material,shadow);
+        surface.mesh->draw();
     }
-    mesh->draw();
+}
+
+// Built once per asset and kept for the process: the vertex data is immutable
+// (animation happens in the skin palette, not here) and so are the textures.
+const Renderer::Model& Renderer::modelFor(const ModelAsset& asset)
+{
+    auto& built=m_models[&asset];
+    if(!built.surfaces.empty()) return built;
+    auto texture=[&](int image)->const Texture* {
+        if(image<0) return nullptr;
+        auto& slot=built.textures[image];
+        if(!slot) {
+            const auto& data=asset.image(size_t(image));
+            slot=std::make_unique<Texture>(data.pixels.data(),data.width,data.height,data.channels);
+        }
+        return slot.get();
+    };
+    for(size_t i=0;i<asset.surfaceCount();++i) {
+        auto vertices=asset.animated()?asset.surfaceSkinVertices(i):asset.surfaceVertices(i);
+        if(vertices.empty()) continue; // a material the asset declares but never uses
+        const auto& source=asset.surface(i);
+        Material material;
+        // The base color factor is already folded into the vertex colors, in
+        // both the baked-palette and the textured case.
+        material.albedoMap=source.bakedColor?nullptr:texture(source.baseColorImage);
+        material.normalMap=texture(source.normalImage);
+        material.alphaCutoff=source.alphaCutoff;
+        material.doubleSided=source.doubleSided;
+        built.surfaces.push_back({std::make_unique<Mesh>(vertices,true,asset.animated()),material});
+    }
+    return built;
 }
 
 bool Renderer::visibleSphere(const glm::vec3& center,float radius,bool shadow) const {
