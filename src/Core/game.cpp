@@ -415,6 +415,23 @@ int Game::run(bool smokeTest, bool benchmark)
         render(); // let ImGui settle its first-frame automatic sizing
         m_capturePath = "smoke-city.ppm";
         render();
+        // A hero frame: the imported Porsche parked on a downtown street.
+        m_player->position = {6.5f, 8.0f, 24};
+        m_camera = Camera(); m_camera.maxDistance=60; m_camera.processScroll(-46);
+        m_camera.processMouse(-620, 150);
+        m_camera.follow(m_player->position + glm::vec3(0,1.2f,0));
+        {
+            Vehicle& hero = spawnVehicleAhead(VehicleType::Porsche930);
+            m_camera=Camera(); m_camera.sensitivity=1.0f; m_camera.maxDistance=9.0f;
+            m_camera.processScroll(-100);                       // out to the far stop
+            m_camera.processMouse(120.0f, -11.0f);              // three-quarter front, near eye level
+            m_camera.follow(hero.position()+glm::vec3(0,1.25f,0));
+            m_capturePath = "smoke-porsche.ppm";
+            render();
+            m_vehicles.pop_back();
+            m_actors.pop_back();
+        }
+
         // A junction on the graded link out of downtown: road paint here has to
         // follow the camber, which a flat slab could not.
         m_player->position = {0, 9.4f, -176};
@@ -459,7 +476,7 @@ int Game::run(bool smokeTest, bool benchmark)
         int previewWidth,previewHeight;glfwGetFramebufferSize(m_window,&previewWidth,&previewHeight);
         captureModelPreviews(*m_renderer,*m_shadowMap,previewWidth,previewHeight);
         if (glGetError() != GL_NO_ERROR) throw std::runtime_error("OpenGL smoke test failed");
-        std::cout << "Startup, mission lifecycle and rendering smoke tests passed: smoke-debug.ppm, smoke-missions.ppm, smoke-vehicle-panel.ppm, smoke-city.ppm, smoke-grade.ppm, smoke-ramp.ppm, smoke-island.ppm, smoke-dusk.ppm, smoke-night.ppm, smoke-bridge.ppm, smoke-shore.ppm\n";
+        std::cout << "Startup, mission lifecycle and rendering smoke tests passed: smoke-debug.ppm, smoke-missions.ppm, smoke-vehicle-panel.ppm, smoke-city.ppm, smoke-porsche.ppm, smoke-grade.ppm, smoke-ramp.ppm, smoke-island.ppm, smoke-dusk.ppm, smoke-night.ppm, smoke-bridge.ppm, smoke-shore.ppm\n";
         return 0;
     }
 
