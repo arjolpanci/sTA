@@ -49,6 +49,26 @@ void Mesh::draw() const
     glBindVertexArray(0);
 }
 
+void Mesh::drawInstanced(unsigned int instanceBuffer, int instances) const
+{
+    if (instances <= 0)
+        return;
+    glBindVertexArray(m_VAO);
+    if (!m_vertexColors) glVertexAttrib3f(3, 1, 1, 1);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceBuffer);
+    for (int column = 0; column < 4; ++column)
+    {
+        const GLuint location = 6 + column;
+        glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, 16 * sizeof(float), (void*)(column * 4 * sizeof(float)));
+        glEnableVertexAttribArray(location);
+        glVertexAttribDivisor(location, 1);
+    }
+    glDrawArraysInstanced(GL_TRIANGLES, 0, m_vertexCount, instances);
+    for (int column = 0; column < 4; ++column)
+        glDisableVertexAttribArray(6 + column);
+    glBindVertexArray(0);
+}
+
 glm::mat4 Mesh::boxMatrix(const glm::vec3& center, const glm::vec3& size, float yawDeg)
 {
     glm::mat4 m = glm::translate(glm::mat4(1.0f), center);

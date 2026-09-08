@@ -13,7 +13,9 @@ Renderer::Renderer()
     : m_shader("resources/shaders/basic.vert", "resources/shaders/basic.frag"),
       m_shadowShader("resources/shaders/shadow.vert", "resources/shaders/shadow.frag"),
       m_skinShader("resources/shaders/skinned.vert", "resources/shaders/basic.frag"),
-      m_skinShadowShader("resources/shaders/skinned_shadow.vert", "resources/shaders/shadow.frag")
+      m_skinShadowShader("resources/shaders/skinned_shadow.vert", "resources/shaders/shadow.frag"),
+      m_instanceShader("resources/shaders/instanced.vert", "resources/shaders/basic.frag"),
+      m_instanceShadowShader("resources/shaders/instanced_shadow.vert", "resources/shaders/shadow.frag")
 {
 }
 
@@ -45,10 +47,12 @@ void Renderer::beginShadowPass(const glm::mat4& lightSpaceMatrix)
 {
     m_shadowFrustum=Frustum(lightSpaceMatrix);
     m_active=nullptr;setCulling(true);
-    for(auto* shader:{&m_shadowShader,&m_skinShadowShader}) {
+    for(auto* shader:{&m_shadowShader,&m_skinShadowShader,&m_instanceShadowShader}) {
         use(*shader);shader->setMat4("lightSpaceMatrix",lightSpaceMatrix);
     }
-    m_skinShadowShader.setInt("skinPalette",2);
+    // Explicitly current: setting a uniform relies on its own program being
+    // bound, and the loop above leaves whichever shader it ended on.
+    use(m_skinShadowShader);m_skinShadowShader.setInt("skinPalette",2);
 }
 void Renderer::drawShadow(const Mesh& mesh,const glm::mat4& model)
 {
@@ -68,7 +72,7 @@ void Renderer::beginFrame(const Camera& camera,float aspect,const glm::mat4& lig
     setCamera(camera,aspect);
     // Terrain/water own their shaders, so reset the active-program cache at pass boundaries.
     m_active=nullptr;
-    for(auto* shader:{&m_shader,&m_skinShader}) {
+    for(auto* shader:{&m_shader,&m_skinShader,&m_instanceShader}) {
         use(*shader);
         shader->setMat4("view",camera.viewMatrix());
         shader->setMat4("projection",glm::perspective(glm::radians(60.0f),aspect,.1f,3000.0f));
@@ -78,8 +82,18 @@ void Renderer::beginFrame(const Camera& camera,float aspect,const glm::mat4& lig
         shader->setInt("tex",0);shader->setInt("shadowMap",1);shader->setInt("normalMap",3);
     }
     setCulling(true);
-    m_skinShader.setInt("skinPalette",2);
+    use(m_skinShader);m_skinShader.setInt("skinPalette",2);
     shadowMap.bindForSampling(1);
+}
+void Renderer::drawInstanced(const Mesh& mesh,unsigned int instances,int count,const Material& material)
+{
+    use(m_instanceShader);bindMaterial(m_instanceShader,material,false);
+    mesh.drawInstanced(instances,count);
+}
+void Renderer::drawShadowInstanced(const Mesh& mesh,unsigned int instances,int count,const Material& material)
+{
+    use(m_instanceShadowShader);bindMaterial(m_instanceShadowShader,material,true);
+    mesh.drawInstanced(instances,count);
 }
 void Renderer::draw(const Mesh& mesh,const glm::mat4& model,const Material& material)
 {

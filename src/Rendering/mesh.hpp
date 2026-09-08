@@ -17,6 +17,13 @@ public:
     Mesh& operator=(const Mesh&) = delete;
 
     void draw() const;
+
+    // Draws the mesh once per matrix in an instance buffer (four vec4 columns
+    // per instance, tightly packed). The pointers live in this mesh's VAO and
+    // are re-specified per call, so one shared mesh can be drawn against any
+    // caller's buffer without a VAO per instance set.
+    void drawInstanced(unsigned int instanceBuffer, int instances) const;
+
     int vertexCount() const { return m_vertexCount; }
 
     // vertex data factories

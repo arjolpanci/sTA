@@ -41,6 +41,11 @@ public:
     // shaded, or its depth silhouette is not the shape that gets drawn.
     void drawShadow(const Mesh& mesh, const glm::mat4& model, const Material& material);
 
+    // Instanced counterparts: one draw for every copy of a model in the
+    // buffer, which is how repeated scenery is drawn in both passes.
+    void drawInstanced(const Mesh& mesh, unsigned int instances, int count, const Material& material);
+    void drawShadowInstanced(const Mesh& mesh, unsigned int instances, int count, const Material& material);
+
     // main pass: full shading, sampling the shadow map captured just before.
     // shadowsEnabled only gates the shader's use of the shadow map - the
     // capture itself should still run every frame regardless, so the map
@@ -64,7 +69,7 @@ private:
     };
     std::map<const ModelAsset*,Model> m_models;
     std::map<const void*,Pose> m_poses;
-    Shader m_shader, m_shadowShader, m_skinShader, m_skinShadowShader;
+    Shader m_shader, m_shadowShader, m_skinShader, m_skinShadowShader, m_instanceShader, m_instanceShadowShader;
     Shader* m_active=nullptr;
     Frustum m_cameraFrustum, m_shadowFrustum;
     glm::vec3 m_eye{0};
