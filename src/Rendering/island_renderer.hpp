@@ -7,6 +7,7 @@ class Terrain;
 class Camera;
 class Renderer;
 class ShadowMap;
+struct Lighting;
 
 class IslandRenderer
 {
@@ -15,8 +16,8 @@ public:
     ~IslandRenderer();
     void drawShadow(Renderer& renderer, const glm::vec3& focus);
     void drawTerrain(const Camera& camera, float aspect, const glm::mat4& lightSpace,
-                     const glm::vec3& sun, const ShadowMap& shadows, bool enabled);
-    void drawWater(const Camera& camera, float aspect, const glm::vec3& sun, float time, float waveStrength);
+                     const Lighting& lighting, const ShadowMap& shadows, bool enabled);
+    void drawWater(const Camera& camera, float aspect, const Lighting& lighting, float time, float waveStrength);
 private:
     struct Chunk { glm::vec3 center; float radius; std::unique_ptr<Mesh> mesh; };
     void common(Shader& shader, const Camera& camera, float aspect);

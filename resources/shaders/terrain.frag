@@ -7,7 +7,7 @@ out vec4 FragColor;
 uniform sampler2D terrainData;
 uniform sampler2D shadowMap;
 uniform float terrainExtent, terrainResolution, seaLevel;
-uniform vec3 viewPos, lightDir;
+uniform vec3 viewPos, lightDir, sunColor, ambientColor, fogColor;
 uniform bool shadowsEnabled;
 float hash(vec2 p) {return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p) {
@@ -35,7 +35,7 @@ void main() {
         for(int x=-1;x<=1;++x) for(int y=-1;y<=1;++y)
             shadow+=(p.z-bias>texture(shadowMap,p.xy+vec2(x,y)*texel).r)?1.0/9.0:0.0;
     }
-    vec3 lit=base*(.42+(1-shadow)*max(dot(n,lightDir),0)*.65);
+    vec3 lit=base*(ambientColor+(1-shadow)*max(dot(n,lightDir),0)*sunColor);
     float fog=smoothstep(600,2700,length(viewPos-vFragPos));
-    FragColor=vec4(mix(lit,vec3(.60,.73,.79),fog),1);
+    FragColor=vec4(mix(lit,fogColor,fog),1);
 }

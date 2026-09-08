@@ -8,6 +8,7 @@
 #include "Core/input.hpp"
 #include "Core/debug_ui.hpp"
 #include "Rendering/camera.hpp"
+#include "Rendering/sky.hpp"
 #include "Game/world.hpp"
 #include "Game/actor.hpp"
 #include "Game/player.hpp"
@@ -86,7 +87,12 @@ private:
 
     bool m_shadowsEnabled = true;
     bool m_showShadowMapPreview = false;
-    glm::vec3 m_sunDirection = glm::normalize(glm::vec3(0.4f, 1.0f, 0.3f)); // normalized, points toward the light
+    // The sun is derived from the clock rather than fixed: m_timeOfDay drives
+    // its direction, the light and haze colours, and the sky itself.
+    float m_timeOfDay = 9.5f;      // hours, [0,24)
+    float m_minutesPerSecond = 1.0f; // a full day in 24 real minutes
+    bool m_dayRunning = true;
+    Lighting m_lighting = Lighting::atTime(9.5f);
 
     // GL resources live behind pointers: they can only be created in init(),
     // once the OpenGL context exists
@@ -97,6 +103,7 @@ private:
     std::unique_ptr<Mesh> m_rampMesh;
     std::unique_ptr<Texture> m_mapTexture;
     std::unique_ptr<ShadowMap> m_shadowMap;
+    std::unique_ptr<Sky> m_sky;
 };
 
 #endif

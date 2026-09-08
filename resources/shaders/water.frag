@@ -3,7 +3,7 @@ in vec3 worldPosition;
 out vec4 FragColor;
 uniform sampler2D terrainData;
 uniform float terrainExtent, terrainResolution, seaLevel, time, waveStrength;
-uniform vec3 viewPos, lightDir;
+uniform vec3 viewPos, lightDir, sunColor, ambientColor, fogColor;
 float hash(vec2 p) {return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p) {
     vec2 i=floor(p), f=fract(p); f=f*f*(3-2*f);
@@ -26,12 +26,16 @@ void main() {
     vec3 view=normalize(viewPos-worldPosition);
     float fresnel=.08+.62*pow(1-max(dot(n,view),0),5);
     vec3 water=mix(vec3(.13,.48,.44),vec3(.035,.16,.25),smoothstep(0,18,depth));
-    water=mix(water,vec3(.60,.73,.79),fresnel);
+    water=mix(water,fogColor,fresnel);
     float spec=pow(max(dot(n,normalize(lightDir+view)),0),mix(40.0,180.0,rippleFade))*mix(.35,1.3,rippleFade);
     float breaking=sin(depth*5.0-time*1.7+noise(p*.18)*2)*.5+.5;
     float foam=(1-smoothstep(.1,2.8,depth))*smoothstep(.35,.78,breaking+noise(p*1.1)*.28);
-    water=mix(water,vec3(.87,.94,.88),foam*.88)+vec3(1,.91,.72)*spec;
+    water=mix(water,vec3(.87,.94,.88),foam*.88);
+    // One shade term for the whole surface: the palette above was tuned by eye
+    // at midday, so it is scaled by the light rather than relit from scratch.
+    water*=ambientColor+sunColor*max(lightDir.y,0.);
+    water+=sunColor*spec;
     float fog=smoothstep(600,2700,length(viewPos-worldPosition));
-    water=mix(water,vec3(.60,.73,.79),fog);
+    water=mix(water,fogColor,fog);
     FragColor=vec4(water,mix(.6,1.0,smoothstep(0,6,depth)));
 }

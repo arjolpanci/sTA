@@ -9,6 +9,7 @@
 #include "shader.hpp"
 #include "material.hpp"
 #include "frustum.hpp"
+#include "sky.hpp"
 
 class Mesh;
 class ModelAsset;
@@ -51,7 +52,7 @@ public:
     // capture itself should still run every frame regardless, so the map
     // never contains stale data from whenever it was last disabled
     void beginFrame(const Camera& camera, float aspect, const glm::mat4& lightSpaceMatrix,
-                     const glm::vec3& lightDir, const ShadowMap& shadowMap, bool shadowsEnabled);
+                     const Lighting& lighting, const ShadowMap& shadowMap, bool shadowsEnabled);
     void draw(const Mesh& mesh, const glm::mat4& model, const Material& material);
 
 private:

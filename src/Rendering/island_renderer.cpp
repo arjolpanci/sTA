@@ -3,6 +3,7 @@
 #include "camera.hpp"
 #include "renderer.hpp"
 #include "shadow_map.hpp"
+#include "sky.hpp"
 #include "frustum.hpp"
 #include <limits>
 #include <glm/gtc/matrix_transform.hpp>
@@ -60,11 +61,14 @@ void IslandRenderer::drawShadow(Renderer& renderer,const glm::vec3& focus)
             renderer.drawShadow(*chunk.mesh,glm::mat4(1));
 }
 void IslandRenderer::drawTerrain(const Camera& camera,float aspect,const glm::mat4& lightSpace,
-                                  const glm::vec3& sun,const ShadowMap& shadows,bool enabled)
+                                  const Lighting& lighting,const ShadowMap& shadows,bool enabled)
 {
     common(m_terrainShader,camera,aspect);
     m_terrainShader.setMat4("lightSpaceMatrix",lightSpace);
-    m_terrainShader.setVec3("lightDir",sun);
+    m_terrainShader.setVec3("lightDir",lighting.direction);
+    m_terrainShader.setVec3("sunColor",lighting.sunColor);
+    m_terrainShader.setVec3("ambientColor",lighting.ambientColor);
+    m_terrainShader.setVec3("fogColor",lighting.fogColor);
     m_terrainShader.setBool("shadowsEnabled",enabled);
     m_terrainShader.setInt("shadowMap",1); shadows.bindForSampling(1);
     Frustum frustum(glm::perspective(glm::radians(60.0f),aspect,.1f,3000.0f)*camera.viewMatrix());
@@ -72,10 +76,13 @@ void IslandRenderer::drawTerrain(const Camera& camera,float aspect,const glm::ma
         if(frustum.intersectsSphere(chunk.center,chunk.radius) && glm::length(glm::vec2(chunk.center.x-camera.position().x,chunk.center.z-camera.position().z))<2100)
             chunk.mesh->draw();
 }
-void IslandRenderer::drawWater(const Camera& camera,float aspect,const glm::vec3& sun,float time,float waveStrength)
+void IslandRenderer::drawWater(const Camera& camera,float aspect,const Lighting& lighting,float time,float waveStrength)
 {
     common(m_waterShader,camera,aspect);
-    m_waterShader.setVec3("lightDir",sun);
+    m_waterShader.setVec3("lightDir",lighting.direction);
+    m_waterShader.setVec3("sunColor",lighting.sunColor);
+    m_waterShader.setVec3("ambientColor",lighting.ambientColor);
+    m_waterShader.setVec3("fogColor",lighting.fogColor);
     m_waterShader.setVec3("waterOrigin", {std::floor(camera.position().x/32)*32, 0, std::floor(camera.position().z/32)*32});
     m_waterShader.setFloat("time",time);
     m_waterShader.setFloat("waveStrength",waveStrength);

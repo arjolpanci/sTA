@@ -22,6 +22,7 @@ add_executable(sTA
 	src/Rendering/island_renderer.cpp
 	src/Rendering/scene_renderer.cpp
 	src/Rendering/shadow_map.cpp
+	src/Rendering/sky.cpp
 	src/Game/world.cpp src/Game/terrain.cpp
 	src/Game/player.cpp
 	src/Game/vehicle.cpp
@@ -98,7 +99,7 @@ endif()
 if(BUILD_TESTING)
   add_executable(sta_traffic_tests tests/traffic_tests.cpp src/Game/world.cpp src/Game/terrain.cpp src/Game/vehicle.cpp
     src/Game/pedestrian.cpp src/Core/input.cpp src/Rendering/camera.cpp src/Rendering/mesh.cpp
-    src/Rendering/renderer.cpp src/Rendering/shader.cpp src/Rendering/texture.cpp src/Rendering/shadow_map.cpp lib/glad.c)
+    src/Rendering/renderer.cpp src/Rendering/shader.cpp src/Rendering/texture.cpp src/Rendering/shadow_map.cpp src/Rendering/sky.cpp lib/glad.c)
   target_include_directories(sta_traffic_tests PRIVATE "${INCLUDE_DIR}" "${PROJ_ROOT}/src")
   if(WIN32)
     target_compile_definitions(sta_traffic_tests PRIVATE GLFW_STATIC)

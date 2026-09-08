@@ -67,7 +67,7 @@ void Renderer::drawShadow(const Mesh& mesh,const glm::mat4& model,const Material
     mesh.draw();
 }
 void Renderer::beginFrame(const Camera& camera,float aspect,const glm::mat4& lightSpaceMatrix,
-                           const glm::vec3& lightDir,const ShadowMap& shadowMap,bool shadowsEnabled)
+                           const Lighting& lighting,const ShadowMap& shadowMap,bool shadowsEnabled)
 {
     setCamera(camera,aspect);
     // Terrain/water own their shaders, so reset the active-program cache at pass boundaries.
@@ -77,7 +77,10 @@ void Renderer::beginFrame(const Camera& camera,float aspect,const glm::mat4& lig
         shader->setMat4("view",camera.viewMatrix());
         shader->setMat4("projection",glm::perspective(glm::radians(60.0f),aspect,.1f,3000.0f));
         shader->setMat4("lightSpaceMatrix",lightSpaceMatrix);
-        shader->setVec3("lightDir",lightDir);shader->setVec3("viewPos",camera.position());
+        shader->setVec3("lightDir",lighting.direction);shader->setVec3("viewPos",camera.position());
+        shader->setVec3("sunColor",lighting.sunColor);shader->setVec3("ambientColor",lighting.ambientColor);
+        shader->setVec3("fogColor",lighting.fogColor);
+        shader->setFloat("night",1.0f-glm::clamp((lighting.sunElevation+.12f)/.22f,0.0f,1.0f));
         shader->setBool("shadowsEnabled",shadowsEnabled);
         shader->setInt("tex",0);shader->setInt("shadowMap",1);shader->setInt("normalMap",3);
     }

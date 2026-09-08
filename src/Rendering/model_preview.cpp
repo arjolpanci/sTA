@@ -1,6 +1,7 @@
 #include "model_preview.hpp"
 #include "model_asset.hpp"
 #include "renderer.hpp"
+#include "sky.hpp"
 #include "shadow_map.hpp"
 #include "camera.hpp"
 #include "mesh.hpp"
@@ -13,7 +14,9 @@
 void captureModelPreviews(Renderer& renderer,ShadowMap& shadows,int width,int height)
 {
     Mesh floor(Mesh::planeVertices(1));
-    const auto light=glm::normalize(glm::vec3(.4f,1,.3f));
+    // Mid-morning, so contact sheets stay comparable between runs.
+    const auto lighting=Lighting::atTime(9.5f);
+    const auto light=lighting.direction;
     // Keep CPU asset identities alive across contact sheets, like the live actors.
     std::vector<std::shared_ptr<const ModelAsset>> retained;
     auto sheet=[&](const char* filename,const std::vector<std::string>& files,int columns,float spacing,float distance,float modelHeight,float time) {
@@ -34,7 +37,7 @@ void captureModelPreviews(Renderer& renderer,ShadowMap& shadows,int width,int he
         for(const auto& item:items)renderer.drawModel(*item.asset,item.asset.get(),item.matrix,item.pose,true);
         shadows.endCapture(width,height);
         glClearColor(.60f,.73f,.79f,1);glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-        renderer.beginFrame(camera,float(width)/height,lightMatrix,light,shadows,true);
+        renderer.beginFrame(camera,float(width)/height,lightMatrix,lighting,shadows,true);
         renderer.draw(floor,glm::scale(glm::mat4(1),glm::vec3(100,1,100)),Material{glm::vec3(.32f,.36f,.39f)});
         for(const auto& item:items)renderer.drawModel(*item.asset,item.asset.get(),item.matrix,item.pose,false);
         std::vector<unsigned char> pixels(size_t(width)*height*3);glPixelStorei(GL_PACK_ALIGNMENT,1);

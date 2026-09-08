@@ -19,6 +19,10 @@ uniform float alphaCutoff;  // 0 disables the cutout test
 
 // lighting (set once per frame, not per material)
 uniform vec3 lightDir;   // normalized, points toward the light
+uniform vec3 sunColor;     // direct light, warm near the horizon
+uniform vec3 ambientColor; // sky light: what a shadowed surface still receives
+uniform vec3 fogColor;     // horizon haze, matched to the sky
+uniform float night;       // 0 in daylight, 1 after dusk
 uniform vec3 viewPos;
 uniform sampler2D shadowMap;
 uniform bool shadowsEnabled;
@@ -115,11 +119,12 @@ void main()
 
     // ambient represents indirect/sky light, so it isn't blocked by the
     // direct light's shadow - only the diffuse+specular term is
-    vec3 ambient = base * 0.35;
-    vec3 direct = base * diffuse + vec3(specular);
-    vec3 finalColor = ambient + (1.0 - shadow) * direct * 0.65;
-    finalColor += vec3(1.0, 0.79, 0.45) * windowGlow;
+    vec3 ambient = base * ambientColor;
+    vec3 direct = (base * diffuse + vec3(specular)) * sunColor;
+    vec3 finalColor = ambient + (1.0 - shadow) * direct;
+    // Lit windows barely register at noon and carry the skyline at night.
+    finalColor += vec3(1.0, 0.79, 0.45) * windowGlow * (0.35 + 3.0 * night);
     float fog = smoothstep(600.0, 2700.0, length(viewPos - vFragPos));
-    finalColor = mix(finalColor, vec3(0.60, 0.73, 0.79), fog);
+    finalColor = mix(finalColor, fogColor, fog);
     FragColor = vec4(finalColor, 1.0);
 }

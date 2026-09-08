@@ -45,6 +45,7 @@ Game::~Game()
     m_sceneRenderer.reset();
     m_rampMesh.reset();
     m_mapTexture.reset();
+    m_sky.reset();
     m_shadowMap.reset();
     if (m_window)
         glfwTerminate();
@@ -93,6 +94,7 @@ bool Game::init()
     m_rampMesh = std::make_unique<Mesh>(Mesh::rampVertices());
     m_mapTexture = std::make_unique<Texture>("resources/maps/island-overview.png");
     m_shadowMap = std::make_unique<ShadowMap>();
+    m_sky = std::make_unique<Sky>();
 
     // player
     auto player = std::make_unique<Player>();
@@ -237,6 +239,23 @@ bool Game::init()
         ImGui::TextUnformatted("Baked island: 2048 m / 513 x 513 samples");
         ImGui::TextWrapped("The game loads resources/maps/island.bin and island.scene. Rebuild deliberately with tools/build_island.py; no terrain is generated at startup.");
         ImGui::SliderFloat("Wave strength", &m_waveStrength, 0.0f, 2.0f);
+
+        ImGui::SeparatorText("Time of day");
+        ImGui::SliderFloat("Hour", &m_timeOfDay, 0.0f, 24.0f, "%.2f h");
+        ImGui::SliderFloat("Minutes per second", &m_minutesPerSecond, 0.0f, 60.0f);
+        ImGui::Checkbox("Clock running", &m_dayRunning);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Dawn")) m_timeOfDay = 6.4f;
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Noon")) m_timeOfDay = 12.0f;
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Dusk")) m_timeOfDay = 17.9f;
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Night")) m_timeOfDay = 22.0f;
+        ImGui::Text("Sun %.0f deg above horizon | light %.2f %.2f %.2f",
+                    glm::degrees(std::asin(std::clamp(m_lighting.sunElevation, -1.0f, 1.0f))),
+                    m_lighting.sunColor.x, m_lighting.sunColor.y, m_lighting.sunColor.z);
+
         ImGui::Checkbox("Show game HUD and minimap", &m_showHUD);
         ImGui::Checkbox("Show collision boxes", &m_showColliders);
         ImGui::Checkbox("Shadows enabled", &m_shadowsEnabled);
@@ -403,6 +422,11 @@ int Game::run(bool smokeTest, bool benchmark)
         m_camera.follow({0,30,0});
         m_capturePath="smoke-island.ppm";
         render();
+        // The sky and light model, at the two times of day it has to get right.
+        const float noon=m_timeOfDay;
+        m_timeOfDay=17.9f; m_capturePath="smoke-dusk.ppm"; render();
+        m_timeOfDay=22.0f; m_capturePath="smoke-night.ppm"; render();
+        m_timeOfDay=noon;
         m_player->position={-480,12,120};
         m_camera=Camera(); m_camera.maxDistance=150;
         m_camera.processScroll(-65); m_camera.processMouse(600,150);
@@ -421,7 +445,7 @@ int Game::run(bool smokeTest, bool benchmark)
         int previewWidth,previewHeight;glfwGetFramebufferSize(m_window,&previewWidth,&previewHeight);
         captureModelPreviews(*m_renderer,*m_shadowMap,previewWidth,previewHeight);
         if (glGetError() != GL_NO_ERROR) throw std::runtime_error("OpenGL smoke test failed");
-        std::cout << "Startup, mission lifecycle and rendering smoke tests passed: smoke-debug.ppm, smoke-missions.ppm, smoke-vehicle-panel.ppm, smoke-city.ppm, smoke-ramp.ppm, smoke-island.ppm, smoke-bridge.ppm, smoke-shore.ppm\n";
+        std::cout << "Startup, mission lifecycle and rendering smoke tests passed: smoke-debug.ppm, smoke-missions.ppm, smoke-vehicle-panel.ppm, smoke-city.ppm, smoke-ramp.ppm, smoke-island.ppm, smoke-dusk.ppm, smoke-night.ppm, smoke-bridge.ppm, smoke-shore.ppm\n";
         return 0;
     }
 
@@ -560,6 +584,8 @@ void Game::update(float dt)
 
 
     m_worldTime += dt;
+    if (m_dayRunning)
+        m_timeOfDay = std::fmod(m_timeOfDay + dt * m_minutesPerSecond / 60.0f + 24.0f, 24.0f);
     m_waterRecoveryNotice = std::max(0.0f, m_waterRecoveryNotice - dt);
     m_noticeTime = std::max(0.0f, m_noticeTime - dt);
     for (auto& actor : m_actors)
@@ -613,7 +639,7 @@ void Game::render()
 
     m_renderer->stats={};
     m_renderer->setCamera(m_camera,aspect);
-    glm::mat4 lightSpaceMatrix = ShadowMap::lightSpaceMatrix(m_sunDirection, m_controlled->collisionBox().center, 95.0f);
+    glm::mat4 lightSpaceMatrix = ShadowMap::lightSpaceMatrix(m_lighting.direction, m_controlled->collisionBox().center, 95.0f);
 
     // shadow pass: depth only, from the sun's point of view. Runs every
     // frame regardless of m_shadowsEnabled, which only gates whether the
@@ -640,12 +666,13 @@ void Game::render()
 
     m_shadowMap->endCapture(width, height);
 
-    // main pass
-    glClearColor(0.60f, 0.73f, 0.79f, 1.0f); // sky
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // main pass. The sky covers every pixel, so only depth needs clearing.
+    m_lighting = Lighting::atTime(m_timeOfDay);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    m_sky->draw(m_camera, aspect, m_lighting, m_timeOfDay);
 
-    m_islandRenderer->drawTerrain(m_camera, aspect, lightSpaceMatrix, m_sunDirection, *m_shadowMap, m_shadowsEnabled);
-    m_renderer->beginFrame(m_camera, aspect, lightSpaceMatrix, m_sunDirection, *m_shadowMap, m_shadowsEnabled);
+    m_islandRenderer->drawTerrain(m_camera, aspect, lightSpaceMatrix, m_lighting, *m_shadowMap, m_shadowsEnabled);
+    m_renderer->beginFrame(m_camera, aspect, lightSpaceMatrix, m_lighting, *m_shadowMap, m_shadowsEnabled);
     m_sceneRenderer->draw(*m_renderer, m_camera.position());
 
     // ramps: the unit wedge rises along local +Z, flush with the ground at
@@ -670,14 +697,14 @@ void Game::render()
     for (const auto& actor : m_actors)
         actor->render(*m_renderer, *m_cubeMesh, actor.get() == m_controlled);
 
-    m_islandRenderer->drawWater(m_camera, aspect, m_sunDirection, m_worldTime, m_waveStrength);
+    m_islandRenderer->drawWater(m_camera, aspect, m_lighting, m_worldTime, m_waveStrength);
 
     // collision debug view: every CollisionBox actually used by the collision
     // predicates, drawn as a wireframe so it can be checked against the
     // visible geometry
     if (m_showColliders)
     {
-        m_renderer->beginFrame(m_camera, aspect, lightSpaceMatrix, m_sunDirection, *m_shadowMap, m_shadowsEnabled);
+        m_renderer->beginFrame(m_camera, aspect, lightSpaceMatrix, m_lighting, *m_shadowMap, m_shadowsEnabled);
         auto drawCollisionBoxWire = [this](const CollisionBox& box, const glm::vec3& color) {
             glm::vec3 center = box.center;
             glm::vec3 size = box.half * 2.0f;
