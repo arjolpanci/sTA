@@ -93,6 +93,7 @@ private:
     float m_minutesPerSecond = 1.0f; // a full day in 24 real minutes
     bool m_dayRunning = true;
     Lighting m_lighting = Lighting::atTime(9.5f);
+    Sky::Clouds m_clouds;
 
     // GL resources live behind pointers: they can only be created in init(),
     // once the OpenGL context exists

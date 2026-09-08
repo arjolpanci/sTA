@@ -59,7 +59,8 @@ Sky::Sky() : m_shader("resources/shaders/sky.vert", "resources/shaders/sky.frag"
 
 Sky::~Sky() { glDeleteVertexArrays(1, &m_VAO); }
 
-void Sky::draw(const Camera& camera, float aspect, const Lighting& lighting, float hours)
+void Sky::draw(const Camera& camera, float aspect, const Lighting& lighting, float hours,
+               const Clouds& clouds, float time)
 {
     const glm::mat4 projection = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 3000.0f);
     m_shader.use();
@@ -67,6 +68,10 @@ void Sky::draw(const Camera& camera, float aspect, const Lighting& lighting, flo
     m_shader.setVec3("sunDirection", lighting.direction);
     m_shader.setFloat("sunElevation", lighting.sunElevation);
     m_shader.setFloat("hours", hours);
+    m_shader.setFloat("time", time);
+    m_shader.setFloat("cloudCoverage", clouds.coverage);
+    m_shader.setFloat("cloudDensity", clouds.density);
+    m_shader.setFloat("cloudSpeed", clouds.speed);
 
     // No depth: the sky is the background, and everything else overwrites it.
     glDepthMask(GL_FALSE);

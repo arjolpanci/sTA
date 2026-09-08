@@ -30,7 +30,12 @@ class Sky
 public:
     Sky();
     ~Sky();
-    void draw(const Camera& camera, float aspect, const Lighting& lighting, float hours);
+    // Weather is deliberately not part of Lighting: it changes what the sky
+    // looks like without (yet) changing how the ground is lit.
+    struct Clouds { float coverage = 0.42f, density = 0.85f, speed = 9.0f; };
+
+    void draw(const Camera& camera, float aspect, const Lighting& lighting, float hours,
+              const Clouds& clouds, float time);
 
 private:
     Shader m_shader;

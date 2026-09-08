@@ -240,6 +240,11 @@ bool Game::init()
         ImGui::TextWrapped("The game loads resources/maps/island.bin and island.scene. Rebuild deliberately with tools/build_island.py; no terrain is generated at startup.");
         ImGui::SliderFloat("Wave strength", &m_waveStrength, 0.0f, 2.0f);
 
+        ImGui::SeparatorText("Weather");
+        ImGui::SliderFloat("Cloud cover", &m_clouds.coverage, 0.0f, 1.0f);
+        ImGui::SliderFloat("Cloud density", &m_clouds.density, 0.0f, 1.0f);
+        ImGui::SliderFloat("Wind (m/s)", &m_clouds.speed, 0.0f, 60.0f);
+
         ImGui::SeparatorText("Time of day");
         ImGui::SliderFloat("Hour", &m_timeOfDay, 0.0f, 24.0f, "%.2f h");
         ImGui::SliderFloat("Minutes per second", &m_minutesPerSecond, 0.0f, 60.0f);
@@ -669,7 +674,7 @@ void Game::render()
     // main pass. The sky covers every pixel, so only depth needs clearing.
     m_lighting = Lighting::atTime(m_timeOfDay);
     glClear(GL_DEPTH_BUFFER_BIT);
-    m_sky->draw(m_camera, aspect, m_lighting, m_timeOfDay);
+    m_sky->draw(m_camera, aspect, m_lighting, m_timeOfDay, m_clouds, m_worldTime);
 
     m_islandRenderer->drawTerrain(m_camera, aspect, lightSpaceMatrix, m_lighting, *m_shadowMap, m_shadowsEnabled);
     m_renderer->beginFrame(m_camera, aspect, lightSpaceMatrix, m_lighting, *m_shadowMap, m_shadowsEnabled);
