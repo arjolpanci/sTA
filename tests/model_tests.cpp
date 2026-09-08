@@ -1,5 +1,7 @@
 #include "Rendering/model_asset.hpp"
 #include "Game/animation_state.hpp"
+#include "Rendering/frustum.hpp"
+#include <glm/gtc/matrix_transform.hpp>
 #include <filesystem>
 #include <iostream>
 #include <cmath>
@@ -17,6 +19,15 @@ void check(const std::vector<float>& vertices) {
     }
 }
 int main() {
+    Frustum camera(glm::perspective(glm::radians(60.0f),1.0f,.1f,100.0f));
+    require(camera.intersectsSphere({0,0,-10},1),"Visible sphere was culled");
+    require(!camera.intersectsSphere({0,0,10},1),"Sphere behind camera was not culled");
+    require(!camera.intersectsSphere({30,0,-10},1),"Sphere outside side plane was not culled");
+    require(!camera.intersectsSphere({0,0,-110},1),"Sphere beyond far plane was not culled");
+    require(camera.intersectsSphere({0,0,0},1),"Sphere crossing near plane must be retained");
+    require(camera.intersectsSphere({6,0,-10},1),"Sphere crossing side plane must be retained");
+    Frustum light(glm::ortho(-20.0f,20.0f,-20.0f,20.0f,-20.0f,20.0f));
+    require(light.intersectsSphere({0,0,10},1),"Off-camera shadow caster must remain visible to light");
     int models=0,characters=0;
     for(const auto& file:std::filesystem::recursive_directory_iterator("resources/models")) {
         if(file.path().extension()!=".glb")continue;
@@ -34,7 +45,27 @@ int main() {
             require(change>1,"Walking animation does not deform the model");
             auto loop=model.vertices("Walk",model.duration("Walk"));require(loop==start,"Animation loop seam/time wrapping failed");
             auto blend=model.vertices("Run",.2f,"Idle",.3f,0);auto old=model.vertices("Idle",.3f); for(size_t i=0;i<blend.size();++i)require(std::abs(blend[i]-old[i])<.0001f,"Crossfade start must preserve previous pose");
-            for(const auto& clip:model.animations())check(model.vertices(clip,model.duration(clip)*.43f));
+            auto bind=model.skinVertices();
+            require(bind.size()/19==base.size()/11,"GPU bind mesh differs from CPU topology");
+            for(const auto& clip:model.animations()) {
+                const float time=model.duration(clip)*.43f;
+                auto cpu=model.vertices(clip,time,"Idle",.2f,.6f);check(cpu);
+                auto palette=model.skinPalette(clip,time,"Idle",.2f,.6f);
+                // Reproduce the vertex shader independently, including multi-part skin offsets.
+                for(size_t vertex=0;vertex<cpu.size()/11;vertex+=37) {
+                    size_t b=vertex*19,c=vertex*11;glm::vec4 p(0);glm::vec3 n(0);
+                    for(int j=0;j<4;++j) {
+                        float weight=bind[b+15+j];if(weight<=0)continue;
+                        size_t bone=size_t(bind[b+11+j])*7;require(bone+6<palette.size(),"GPU bone index outside palette");
+                        glm::mat4 matrix(palette[bone],palette[bone+1],palette[bone+2],palette[bone+3]);
+                        glm::mat3 normal(glm::vec3(palette[bone+4]),glm::vec3(palette[bone+5]),glm::vec3(palette[bone+6]));
+                        p+=weight*(matrix*glm::vec4(bind[b],bind[b+1],bind[b+2],1));
+                        n+=weight*(normal*glm::vec3(bind[b+3],bind[b+4],bind[b+5]));
+                    }
+                    require(glm::length(glm::vec3(p)-glm::vec3(cpu[c],cpu[c+1],cpu[c+2]))<.0001f,"GPU position differs from CPU reference");
+                    require(glm::length(glm::normalize(n)-glm::vec3(cpu[c+3],cpu[c+4],cpu[c+5]))<.0001f,"GPU normal differs from CPU reference");
+                }
+            }
         }
         std::cout<<file.path().filename()<<" size "<<model.size().x<<","<<model.size().y<<","<<model.size().z<<" triangles "<<base.size()/33<<"\n";
     }

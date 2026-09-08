@@ -18,7 +18,7 @@ public:
                      const glm::vec3& sun, const ShadowMap& shadows, bool enabled);
     void drawWater(const Camera& camera, float aspect, const glm::vec3& sun, float time, float waveStrength);
 private:
-    struct Chunk { glm::vec3 center; std::unique_ptr<Mesh> mesh; };
+    struct Chunk { glm::vec3 center; float radius; std::unique_ptr<Mesh> mesh; };
     void common(Shader& shader, const Camera& camera, float aspect);
     std::vector<Chunk> m_chunks;
     std::unique_ptr<Mesh> m_water;

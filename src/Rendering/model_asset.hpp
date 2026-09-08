@@ -14,6 +14,12 @@ public:
     ModelAsset(const ModelAsset&) = delete;
     ModelAsset& operator=(const ModelAsset&) = delete;
     glm::vec3 size() const;
+    bool animated() const;
+    // Immutable bind vertices: position/normal/UV/color/joint indices/weights (19 floats).
+    std::vector<float> skinVertices() const;
+    // Seven vec4 texels per bone: position matrix, then inverse-transpose normal matrix.
+    std::vector<glm::vec4> skinPalette(const std::string& clip, float time,
+        const std::string& previous = "", float previousTime = 0, float blend = 1) const;
     std::vector<std::string> animations() const;
     bool hasAnimation(const std::string& clip) const;
     float duration(const std::string& clip) const;

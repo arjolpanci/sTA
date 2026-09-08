@@ -54,12 +54,12 @@ SceneRenderer::SceneRenderer(const World& world)
 void SceneRenderer::draw(Renderer& renderer,const glm::vec3& camera) const
 {
     for(const auto& batch:m_batches)
-        if(glm::length(glm::vec2(batch.center.x-camera.x,batch.center.z-camera.z))<(batch.facade?1600:850)+batch.radius)
+        if(renderer.visibleSphere(batch.center,batch.radius) && glm::length(glm::vec2(batch.center.x-camera.x,batch.center.z-camera.z))<(batch.facade?1600:850)+batch.radius)
             renderer.draw(*batch.mesh,glm::mat4(1),Material{glm::vec3(1),nullptr,0,batch.facade});
 }
 void SceneRenderer::drawShadow(Renderer& renderer,const glm::vec3& focus) const
 {
     for(const auto& batch:m_batches)
-        if(glm::length(glm::vec2(batch.center.x-focus.x,batch.center.z-focus.z))<210+batch.radius)
+        if(renderer.visibleSphere(batch.center,batch.radius,true) && glm::length(glm::vec2(batch.center.x-focus.x,batch.center.z-focus.z))<210+batch.radius)
             renderer.drawShadow(*batch.mesh,glm::mat4(1));
 }

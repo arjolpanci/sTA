@@ -1,6 +1,8 @@
 #include "game.hpp"
 
 #include <algorithm>
+#include <chrono>
+#include <iomanip>
 #include <cstdint>
 #include <iostream>
 #include <fstream>
@@ -264,12 +266,34 @@ bool Game::init()
     return true;
 }
 
-int Game::run(bool smokeTest)
+int Game::run(bool smokeTest, bool benchmark)
 {
-    m_smokeTest = smokeTest;
+    m_smokeTest = smokeTest || benchmark;
     if (!init())
         return -1;
 
+    if (benchmark)
+    {
+        glfwSwapInterval(0);
+        using Clock=std::chrono::steady_clock;
+        auto ms=[](auto a,auto b){return std::chrono::duration<double,std::milli>(b-a).count();};
+        m_debugUI.setVisible(false);
+        m_camera.follow(m_player->position+glm::vec3(0,1.5f,0));
+        for(bool active:{false,true}) {
+            std::vector<double> frames;double simulation=0,rendering=0,gpuWait=0,poses=0,culled=0,uploads=0;
+            for(int frame=0;frame<140;++frame) {
+                glfwPollEvents();auto a=Clock::now();
+                if(active)update(1.0f/60);
+                auto b=Clock::now();render();auto c=Clock::now();glFinish();auto d=Clock::now();
+                if(frame>=20){frames.push_back(ms(a,d));simulation+=ms(a,b);rendering+=ms(b,c);gpuWait+=ms(c,d);poses+=m_renderer->stats.poseUpdates;culled+=m_renderer->stats.culledModels;uploads+=m_renderer->stats.paletteBytes;}
+            }
+            std::sort(frames.begin(),frames.end());
+            std::cout<<std::fixed<<std::setprecision(2)<<"BENCH "<<(active?"active":"paused")
+                <<" median_ms="<<frames[60]<<" p95_ms="<<frames[114]
+                <<" update_ms="<<simulation/120<<" render_ms="<<rendering/120<<" gpu_wait_ms="<<gpuWait/120<<" poses="<<poses/120<<" culled_model_passes="<<culled/120<<" upload_kb="<<uploads/120/1024<<'\n';
+        }
+        return 0;
+    }
     if (m_smokeTest)
     {
 #ifdef STA_DEBUG_BUILD
@@ -549,6 +573,8 @@ void Game::render()
     glfwGetFramebufferSize(m_window, &width, &height);
     float aspect = height > 0 ? (float)width / (float)height : 1.0f;
 
+    m_renderer->stats={};
+    m_renderer->setCamera(m_camera,aspect);
     glm::mat4 lightSpaceMatrix = ShadowMap::lightSpaceMatrix(m_sunDirection, m_controlled->collisionBox().center, 95.0f);
 
     // shadow pass: depth only, from the sun's point of view. Runs every

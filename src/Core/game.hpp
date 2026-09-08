@@ -32,7 +32,7 @@ public:
     Game();
     ~Game();
 
-    int run(bool smokeTest = false);
+    int run(bool smokeTest = false, bool benchmark = false);
 
 private:
     bool init();

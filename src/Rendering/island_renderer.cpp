@@ -3,6 +3,8 @@
 #include "camera.hpp"
 #include "renderer.hpp"
 #include "shadow_map.hpp"
+#include "frustum.hpp"
+#include <limits>
 #include <glm/gtc/matrix_transform.hpp>
 
 IslandRenderer::IslandRenderer(const Terrain& terrain)
@@ -12,8 +14,12 @@ IslandRenderer::IslandRenderer(const Terrain& terrain)
 {
     for (int z=0; z<terrain.resolution()-1; z+=64)
         for (int x=0; x<terrain.resolution()-1; x+=64)
-            m_chunks.push_back({{(x+32)*terrain.spacing()-m_extent*.5f, 0, (z+32)*terrain.spacing()-m_extent*.5f},
-                std::make_unique<Mesh>(terrain.vertices(x,z,64))});
+        {
+            auto vertices=terrain.vertices(x,z,64);
+            glm::vec3 min(std::numeric_limits<float>::max()),max(-std::numeric_limits<float>::max());
+            for(size_t i=0;i<vertices.size();i+=8){glm::vec3 p(vertices[i],vertices[i+1],vertices[i+2]);min=glm::min(min,p);max=glm::max(max,p);}
+            m_chunks.push_back({(min+max)*.5f,glm::length(max-min)*.5f,std::make_unique<Mesh>(vertices)});
+        }
     std::vector<float> data;
     data.reserve(terrain.heights().size()*2);
     for (size_t i=0; i<terrain.heights().size(); ++i) {data.push_back(terrain.heights()[i]); data.push_back(terrain.roads()[i]);}
@@ -50,7 +56,7 @@ void IslandRenderer::common(Shader& shader,const Camera& camera,float aspect)
 void IslandRenderer::drawShadow(Renderer& renderer,const glm::vec3& focus)
 {
     for(const auto& chunk:m_chunks)
-        if (glm::length(glm::vec2(chunk.center.x-focus.x,chunk.center.z-focus.z))<360)
+        if (renderer.visibleSphere(chunk.center,chunk.radius,true) && glm::length(glm::vec2(chunk.center.x-focus.x,chunk.center.z-focus.z))<360)
             renderer.drawShadow(*chunk.mesh,glm::mat4(1));
 }
 void IslandRenderer::drawTerrain(const Camera& camera,float aspect,const glm::mat4& lightSpace,
@@ -61,8 +67,9 @@ void IslandRenderer::drawTerrain(const Camera& camera,float aspect,const glm::ma
     m_terrainShader.setVec3("lightDir",sun);
     m_terrainShader.setBool("shadowsEnabled",enabled);
     m_terrainShader.setInt("shadowMap",1); shadows.bindForSampling(1);
+    Frustum frustum(glm::perspective(glm::radians(60.0f),aspect,.1f,3000.0f)*camera.viewMatrix());
     for(const auto& chunk:m_chunks)
-        if(glm::length(glm::vec2(chunk.center.x-camera.position().x,chunk.center.z-camera.position().z))<2100)
+        if(frustum.intersectsSphere(chunk.center,chunk.radius) && glm::length(glm::vec2(chunk.center.x-camera.position().x,chunk.center.z-camera.position().z))<2100)
             chunk.mesh->draw();
 }
 void IslandRenderer::drawWater(const Camera& camera,float aspect,const glm::vec3& sun,float time,float waveStrength)

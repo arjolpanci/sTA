@@ -4,9 +4,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-Mesh::Mesh(const std::vector<float>& vertices, bool vertexColors) : m_vertexColors(vertexColors)
+Mesh::Mesh(const std::vector<float>& vertices, bool vertexColors, bool skinned) : m_vertexColors(vertexColors)
 {
-    int components = vertexColors ? 11 : 8;
+    int components = skinned ? 19 : vertexColors ? 11 : 8;
     m_vertexCount = static_cast<int>(vertices.size() / components);
 
     glGenVertexArrays(1, &m_VAO);
@@ -28,6 +28,10 @@ Mesh::Mesh(const std::vector<float>& vertices, bool vertexColors) : m_vertexColo
         glEnableVertexAttribArray(3);
     }
 
+    if(skinned) {
+        glVertexAttribPointer(4,4,GL_FLOAT,GL_FALSE,stride,(void*)(11*sizeof(float)));glEnableVertexAttribArray(4);
+        glVertexAttribPointer(5,4,GL_FLOAT,GL_FALSE,stride,(void*)(15*sizeof(float)));glEnableVertexAttribArray(5);
+    }
     glBindVertexArray(0);
 }
 
@@ -35,13 +39,6 @@ Mesh::~Mesh()
 {
     glDeleteVertexArrays(1, &m_VAO);
     glDeleteBuffers(1, &m_VBO);
-}
-
-void Mesh::update(const std::vector<float>& vertices)
-{
-    m_vertexCount=static_cast<int>(vertices.size()/(m_vertexColors?11:8));
-    glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
-    glBufferData(GL_ARRAY_BUFFER,vertices.size()*sizeof(float),vertices.data(),GL_STREAM_DRAW);
 }
 
 void Mesh::draw() const

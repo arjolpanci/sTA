@@ -29,6 +29,7 @@ void captureModelPreviews(Renderer& renderer,ShadowMap& shadows,int width,int he
         }
         Camera camera;camera.maxDistance=100;camera.processScroll(7-distance);camera.processMouse(0,120);camera.follow({0,modelHeight>0?modelHeight*.4f:1,0});
         auto lightMatrix=ShadowMap::lightSpaceMatrix(light,{0,0,0},40);
+        renderer.setCamera(camera,float(width)/height);
         shadows.beginCapture();renderer.beginShadowPass(lightMatrix);
         for(const auto& item:items)renderer.drawModel(*item.asset,item.asset.get(),item.matrix,item.pose,true);
         shadows.endCapture(width,height);

@@ -73,7 +73,7 @@ struct ModelAsset::Impl {
         }
         return result;
     }
-    std::vector<float> vertices(const std::string& clip,float time,const std::string& previous,float previousTime,float blend) const {
+    std::vector<glm::mat4> transforms(const std::string& clip,float time,const std::string& previous,float previousTime,float blend) const {
         auto local=pose(clip,time);
         if(blend<1 && !previous.empty()) {
             auto old=pose(previous,previousTime);
@@ -90,6 +90,10 @@ struct ModelAsset::Impl {
             global[i]=n.parent?world(n.parent-data->nodes)*mat:mat;ready[i]=true;return global[i];
         };
         for(size_t i=0;i<local.size();++i) world(i);
+        return global;
+    }
+    std::vector<float> vertices(const std::string& clip,float time,const std::string& previous,float previousTime,float blend) const {
+        const auto global=transforms(clip,time,previous,previousTime,blend);
         std::vector<float> out;
         size_t count=0; for(const auto& p:parts) count+=p.indices.size();out.reserve(count*11);
         for(const auto& part:parts) {
@@ -182,4 +186,41 @@ std::vector<float> ModelAsset::vertices(const std::string& clip,float time,const
 std::shared_ptr<const ModelAsset> ModelAsset::load(const std::string& path) {
     static std::map<std::string,std::weak_ptr<const ModelAsset>> cache;
     auto asset=cache[path].lock();if(!asset){asset=std::make_shared<ModelAsset>(path);cache[path]=asset;}return asset;
+}
+
+bool ModelAsset::animated() const{return m->data->animations_count!=0;}
+std::vector<float> ModelAsset::skinVertices() const {
+    std::vector<float> out;
+    size_t count=0;for(const auto& part:m->parts)count+=part.indices.size();out.reserve(count*19);
+    size_t boneOffset=0;
+    for(const auto& part:m->parts) {
+        for(size_t index:part.indices) {
+            const auto& v=part.vertices[index];
+            glm::vec4 joints=part.skin?glm::vec4(v.joints):glm::vec4(0);
+            joints+=glm::vec4(float(boneOffset));auto weights=part.skin?v.weights:glm::vec4(1,0,0,0);
+            out.insert(out.end(),{v.p.x,v.p.y,v.p.z,v.n.x,v.n.y,v.n.z,v.uv.x,v.uv.y,v.color.r,v.color.g,v.color.b,
+                joints.x,joints.y,joints.z,joints.w,weights.x,weights.y,weights.z,weights.w});
+        }
+        boneOffset+=part.skin?part.skin->joints_count:1;
+    }
+    return out;
+}
+std::vector<glm::vec4> ModelAsset::skinPalette(const std::string& clip,float time,const std::string& previous,float previousTime,float blend) const {
+    auto global=m->transforms(clip,time,previous,previousTime,std::clamp(blend,0.0f,1.0f));
+    auto normalize=glm::scale(glm::mat4(1),glm::vec3(m->scale))*glm::translate(glm::mat4(1),-m->offset);
+    std::vector<glm::vec4> palette;
+    for(const auto& part:m->parts) {
+        size_t count=part.skin?part.skin->joints_count:1;
+        for(size_t i=0;i<count;++i) {
+            glm::mat4 matrix=global[part.node];
+            if(part.skin) {
+                glm::mat4 bind(1);if(part.skin->inverse_bind_matrices)cgltf_accessor_read_float(part.skin->inverse_bind_matrices,i,glm::value_ptr(bind),16);
+                matrix=global[part.skin->joints[i]-m->data->nodes]*bind;
+            }
+            auto normal=glm::transpose(glm::inverse(glm::mat3(matrix)));matrix=normalize*matrix;
+            for(int c=0;c<4;++c)palette.push_back(matrix[c]);
+            for(int c=0;c<3;++c)palette.push_back(glm::vec4(normal[c],0));
+        }
+    }
+    return palette;
 }

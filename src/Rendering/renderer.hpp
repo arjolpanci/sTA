@@ -7,6 +7,7 @@
 #include "Game/animation_state.hpp"
 #include "shader.hpp"
 #include "material.hpp"
+#include "frustum.hpp"
 
 class Mesh;
 class ModelAsset;
@@ -21,6 +22,11 @@ class Renderer
 public:
     Renderer();
     ~Renderer();
+    struct Stats { int poseUpdates=0, modelDraws=0, culledModels=0; size_t paletteBytes=0; };
+    Stats stats;
+    void setCamera(const Camera& camera,float aspect);
+    bool visibleSphere(const glm::vec3& center,float radius,bool shadow=false) const;
+
     void drawModel(const ModelAsset& asset, const void* instance, const glm::mat4& model,
                    const AnimationState& animation, bool shadow);
 
@@ -39,14 +45,20 @@ public:
     void draw(const Mesh& mesh, const glm::mat4& model, const Material& material);
 
 private:
-    struct ModelMesh {
+    struct Pose {
         const ModelAsset* asset=nullptr;
         AnimationState animation;
-        std::unique_ptr<Mesh> mesh;
+        unsigned int buffer=0, texture=0;
+        ~Pose();
     };
-    std::map<const void*,ModelMesh> m_models;
-    Shader m_shader;       // basic.vert/frag - the main lit shader
-    Shader m_shadowShader; // shadow.vert/frag - depth-only
+    std::map<const ModelAsset*,std::unique_ptr<Mesh>> m_models;
+    std::map<const void*,Pose> m_poses;
+    Shader m_shader, m_shadowShader, m_skinShader, m_skinShadowShader;
+    Shader* m_active=nullptr;
+    Frustum m_cameraFrustum, m_shadowFrustum;
+    glm::vec3 m_eye{0};
+    void use(Shader& shader);
+
 };
 
 #endif

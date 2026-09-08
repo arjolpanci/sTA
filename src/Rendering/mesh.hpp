@@ -10,14 +10,14 @@
 class Mesh
 {
 public:
-    explicit Mesh(const std::vector<float>& vertices, bool vertexColors = false);
+    explicit Mesh(const std::vector<float>& vertices, bool vertexColors = false, bool skinned = false);
     ~Mesh();
 
     Mesh(const Mesh&) = delete;
     Mesh& operator=(const Mesh&) = delete;
 
     void draw() const;
-    void update(const std::vector<float>& vertices);
+    int vertexCount() const { return m_vertexCount; }
 
     // vertex data factories
     static std::vector<float> cubeVertices();                 // unit cube centered at origin
