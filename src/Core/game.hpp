@@ -49,6 +49,11 @@ private:
     std::function<bool(const CollisionBox&)> collisionPredicateFor(const Actor* self) const;
     Vehicle* drivenVehicle() const; // non-null only while m_controlled is a vehicle
 
+    // Drops a new car on the ground ahead of whatever the player is currently
+    // controlling, facing the way the camera looks. Debug-only, so it does not
+    // check whether the spot is clear - it lands where you are looking.
+    Vehicle& spawnVehicleAhead(VehicleType type);
+
     const char* m_capturePath = nullptr;
     bool m_smokeTest = false;
     GLFWwindow* m_window = nullptr;

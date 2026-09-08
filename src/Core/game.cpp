@@ -261,9 +261,33 @@ bool Game::init()
         ImGui::SliderFloat("Max speed", &vehicle->maxSpeed, 5.0f, 40.0f);
         ImGui::SliderFloat("Max reverse speed", &vehicle->maxReverseSpeed, 2.0f, 20.0f);
         ImGui::SliderFloat("Turn rate (deg/s)", &vehicle->turnRateDeg, 20.0f, 180.0f);
+
+        ImGui::Separator();
+        if (ImGui::Button("Spawn Porsche 930 ahead"))
+        {
+            spawnVehicleAhead(VehicleType::Porsche930);
+            m_debugVehicleIndex = static_cast<int>(m_vehicles.size()) - 1;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(%zu vehicles)", m_vehicles.size());
     });
 
     return true;
+}
+
+Vehicle& Game::spawnVehicleAhead(VehicleType type)
+{
+    const Vehicle* driving = drivenVehicle();
+    const glm::vec3 anchor = driving ? driving->position() : m_player->position;
+    const glm::vec3 forward = m_camera.forwardXZ();
+    glm::vec3 feet = anchor + forward * 8.0f;
+    feet.y = m_world.groundHeightAt(feet.x, feet.z);
+
+    auto car = std::make_unique<Vehicle>(type, feet, glm::degrees(std::atan2(forward.x, forward.z)));
+    Vehicle& spawned = *car;
+    m_vehicles.push_back(car.get());
+    m_actors.push_back(std::move(car));
+    return spawned;
 }
 
 int Game::run(bool smokeTest, bool benchmark)
@@ -338,6 +362,17 @@ int Game::run(bool smokeTest, bool benchmark)
         m_waterRecoveryNotice=0;
         m_vehicles.pop_back();
         m_actors.pop_back();
+
+        // The Vehicle panel's spawn button, exercised the way it is used.
+        const size_t before = m_vehicles.size();
+        const Vehicle& spawned = spawnVehicleAhead(VehicleType::Porsche930);
+        if (m_vehicles.size() != before + 1 || std::string(spawned.modelName()) != "porsche-930")
+            throw std::runtime_error("Spawning a vehicle did not add it to the world");
+        const float reach = glm::length(spawned.position() - m_player->position);
+        if (reach < 4.0f || reach > 12.0f || spawned.position().y < m_world.terrain().seaLevel())
+            throw std::runtime_error("Spawned vehicle did not land ahead of the player on solid ground");
+        m_vehicles.pop_back();
+        m_actors.pop_back();
         m_camera.follow(m_player->position + glm::vec3(0,1.5f,0));
         m_debugUI.selectPanel("Overview");
         render();
@@ -345,6 +380,9 @@ int Game::run(bool smokeTest, bool benchmark)
         render();
         m_debugUI.selectPanel("Missions");
         m_capturePath = "smoke-missions.ppm";
+        render();
+        m_debugUI.selectPanel("Vehicle");
+        m_capturePath = "smoke-vehicle-panel.ppm";
         render();
         m_debugUI.setVisible(false);
         m_capturePath = nullptr;
@@ -383,7 +421,7 @@ int Game::run(bool smokeTest, bool benchmark)
         int previewWidth,previewHeight;glfwGetFramebufferSize(m_window,&previewWidth,&previewHeight);
         captureModelPreviews(*m_renderer,*m_shadowMap,previewWidth,previewHeight);
         if (glGetError() != GL_NO_ERROR) throw std::runtime_error("OpenGL smoke test failed");
-        std::cout << "Startup, mission lifecycle and rendering smoke tests passed: smoke-debug.ppm, smoke-missions.ppm, smoke-city.ppm, smoke-ramp.ppm, smoke-island.ppm, smoke-bridge.ppm, smoke-shore.ppm\n";
+        std::cout << "Startup, mission lifecycle and rendering smoke tests passed: smoke-debug.ppm, smoke-missions.ppm, smoke-vehicle-panel.ppm, smoke-city.ppm, smoke-ramp.ppm, smoke-island.ppm, smoke-bridge.ppm, smoke-shore.ppm\n";
         return 0;
     }
 
