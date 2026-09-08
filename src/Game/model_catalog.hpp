@@ -1,10 +1,10 @@
 #pragma once
 #include <array>
 
-inline constexpr std::array<const char*,18> VehicleModels{{
+inline constexpr std::array<const char*,19> VehicleModels{{
     "sedan", "taxi", "van", "hatchback-sports", "sedan-sports", "suv", "suv-luxury", "police",
     "ambulance", "delivery", "delivery-flat", "truck", "truck-flat", "firetruck", "garbage-truck",
-    "race", "race-future", "tractor-police"
+    "race", "race-future", "tractor-police", "porsche-930"
 }};
 // Order is load-bearing: the baked island scene stores a variant index into
 // this list, chosen by terrain (0-5 broadleaf, 6-9 highland, 10-11 coastal).

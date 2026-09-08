@@ -64,6 +64,13 @@
     "sha256": "a617b880594f56239b7ac4cf6fd4d74ebdae3ba6c5d842e77c76a5906eff352a"
   },
   {
+    "file": "cars/porsche-930.glb",
+    "source": "import/porsche-911930-turbo-1975-wwwvecarzcom.zip",
+    "author": "",
+    "license": "unknown - user supplied",
+    "sha256": "c00bdbfea79dd304f76e5d337c51a045b98344ec9229d6ec48ad4dd32d62d5c2"
+  },
+  {
     "file": "cars/race-future.glb",
     "source": "https://kenney.nl/assets/car-kit",
     "download": "Models/GLB format/race-future.glb",

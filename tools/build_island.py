@@ -11,6 +11,9 @@ import struct
 import zlib
 
 SEED = 731942
+# Kept in step with VehicleModels in src/Game/model_catalog.hpp: every model has
+# to appear in the baked map, which tests/island_tests.cpp checks.
+VEHICLE_MODELS = 19
 N = 513
 STEP = 4.0
 HALF = (N - 1) * STEP / 2
@@ -256,7 +259,7 @@ def main(output):
         if record[0] not in ('V','P'): continue
         values=list(record)
         if record[0] == 'V':
-            values[1] = vehicle_variant % 18
+            values[1] = vehicle_variant % VEHICLE_MODELS
             vehicle_variant += 1
         start=5 if record[0]=='V' else 6
         for k in range(start,len(values),3):

@@ -18,7 +18,7 @@ enum class VehicleType
     Van,
     HatchbackSports, SedanSports, SUV, LuxurySUV, Police, Ambulance,
     Delivery, DeliveryFlat, Truck, TruckFlat, Firetruck, GarbageTruck,
-    Race, RaceFuture, TractorPolice
+    Race, RaceFuture, TractorPolice, Porsche930
 };
 
 // An imported car. Three ways to move: player-controlled (reads
