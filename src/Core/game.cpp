@@ -415,7 +415,16 @@ int Game::run(bool smokeTest, bool benchmark)
         render(); // let ImGui settle its first-frame automatic sizing
         m_capturePath = "smoke-city.ppm";
         render();
+        // A junction on the graded link out of downtown: road paint here has to
+        // follow the camber, which a flat slab could not.
+        m_player->position = {0, 9.4f, -176};
+        m_camera = Camera(); m_camera.maxDistance=60; m_camera.processScroll(-28); m_camera.processMouse(0,240);
+        m_camera.follow(m_player->position + glm::vec3(0,1.5f,0));
+        m_capturePath = "smoke-grade.ppm";
+        render();
+
         m_player->position = {-98, 11.66f, 37};
+        m_camera = Camera(); m_camera.maxDistance=60; m_camera.processScroll(-28);
         m_camera.processMouse(-500, 150);
         m_camera.follow(m_player->position + glm::vec3(0,1.5f,0));
         m_capturePath = "smoke-ramp.ppm";
@@ -450,7 +459,7 @@ int Game::run(bool smokeTest, bool benchmark)
         int previewWidth,previewHeight;glfwGetFramebufferSize(m_window,&previewWidth,&previewHeight);
         captureModelPreviews(*m_renderer,*m_shadowMap,previewWidth,previewHeight);
         if (glGetError() != GL_NO_ERROR) throw std::runtime_error("OpenGL smoke test failed");
-        std::cout << "Startup, mission lifecycle and rendering smoke tests passed: smoke-debug.ppm, smoke-missions.ppm, smoke-vehicle-panel.ppm, smoke-city.ppm, smoke-ramp.ppm, smoke-island.ppm, smoke-dusk.ppm, smoke-night.ppm, smoke-bridge.ppm, smoke-shore.ppm\n";
+        std::cout << "Startup, mission lifecycle and rendering smoke tests passed: smoke-debug.ppm, smoke-missions.ppm, smoke-vehicle-panel.ppm, smoke-city.ppm, smoke-grade.ppm, smoke-ramp.ppm, smoke-island.ppm, smoke-dusk.ppm, smoke-night.ppm, smoke-bridge.ppm, smoke-shore.ppm\n";
         return 0;
     }
 

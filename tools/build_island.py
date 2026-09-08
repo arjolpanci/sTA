@@ -95,6 +95,7 @@ def main(output):
     output.mkdir(parents=True, exist_ok=True)
     records = []
     roads = []
+    markings = []
     pads = []
     buildings = 0
 
@@ -108,6 +109,9 @@ def main(output):
             points = spline(points)
         for a, b in zip(points, points[1:]):
             roads.append((a, b, width))
+
+    def marking(x, z, sx, sz, color):
+        records.append(('M', x, z, sx, sz, *color))
 
     def tree(x, y, z, size=1):
         # Stable variety; palms by low coastal terrain, pines in the highlands.
@@ -167,22 +171,24 @@ def main(output):
                     rx, rz = x-30, z-30
                     route = [(rx+12,elevation,rz+3.5),(rx+56.5,elevation,rz+3.5),(rx+56.5,elevation,rz+56.5),(rx+3.5,elevation,rz+56.5),(rx+3.5,elevation,rz+3.5)]
                     records.append(('V',(ix+iz)%2,90,6,len(route),*(v for p in route for v in p)))
-        # Markings are baked geometry, not generated at startup.
+        # Markings are surface records, not slabs: the loader lays them over
+        # whatever shape the ground turned out to be. A junction next to a
+        # graded connector is not level, and a flat slab there floats.
         for ix in range(nx+1):
             for iz in range(nz+1):
                 x,z = xmin+ix*60,zmin+iz*60
                 for side in (-1,1):
                     for stripe in range(-3,4):
-                        box(x+stripe*1.8,elevation+.015,z+side*6.5,.85,.025,2.6,(.83,.84,.78),False)
-                        box(x+side*6.5,elevation+.015,z+stripe*1.8,2.6,.025,.85,(.83,.84,.78),False)
+                        marking(x+stripe*1.8,z+side*6.5,.85,2.6,(.83,.84,.78))
+                        marking(x+side*6.5,z+stripe*1.8,2.6,.85,(.83,.84,.78))
         for ix in range(nx+1):
             for iz in range(nz):
                 for off in (20,30,40):
-                    box(xmin+ix*60,elevation+.015,zmin+iz*60+off,.16,.025,4,(.85,.73,.35),False)
+                    marking(xmin+ix*60,zmin+iz*60+off,.16,4,(.85,.73,.35))
         for iz in range(nz+1):
             for ix in range(nx):
                 for off in (20,30,40):
-                    box(xmin+ix*60+off,elevation+.015,zmin+iz*60,4,.025,.16,(.85,.73,.35),False)
+                    marking(xmin+ix*60+off,zmin+iz*60,4,.16,(.85,.73,.35))
 
     district(0,0,6,6,8,'Downtown')
     district(390,90,4,3,26,'East gardens',True)
@@ -241,6 +247,18 @@ def main(output):
     for route,yaw in ((arterial,90),(bridges,-90),(mountain,72)):
         records.append(('V',0,yaw,7,len(route),*(round(v,3) for p in route for v in p)))
     for a,b,width in roads: records.append(('L',width,2,*a,*b))
+
+    # Centre dashes along the graded links, which previously had none because a
+    # flat slab could not sit on a grade.
+    for link in (east_link,north_link,west_link,south_link,harbor_link,scenic,south):
+        travelled=0.0
+        for a,b in zip(link,link[1:]):
+            length=math.dist((a[0],a[2]),(b[0],b[2]))
+            while travelled<length:
+                t=travelled/length if length else 0
+                marking(a[0]+(b[0]-a[0])*t, a[2]+(b[2]-a[2])*t, 1.0, 1.0, (.85,.73,.35))
+                travelled+=9.0
+            travelled-=length
 
     print('Sampling fractal heightmap and shaping terraces...', flush=True)
     heights = []

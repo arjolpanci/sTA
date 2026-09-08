@@ -11,7 +11,7 @@
   ],
   "road_mask_grid": 2049,
   "buildings": 122,
-  "scene_records": 5768,
+  "scene_records": 6063,
   "vehicles": 30,
   "pedestrians": 34,
   "road_segments": 459,
@@ -23,7 +23,7 @@
   ],
   "sha256": {
     "island.bin": "6344984e68f5ab2e03e65ae0d79a5cab1d99de776617316c7079824e7f139b6d",
-    "island.scene": "46d1e3db0c51ad0e048f3ff5e7fceb67df11149eb0d87e97ea27037a867f8aa9",
+    "island.scene": "a450f659e909b10cde4931fe33547c63aac0c856b03ad01a783510544018c315",
     "island-overview.png": "f91eeb55b3514fda6a0f8baa081f1b0f42a81a0866330367c04f0670d902ca49"
   }
 }

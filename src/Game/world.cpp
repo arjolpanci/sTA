@@ -66,6 +66,14 @@ World::World()
             m_boxes.push_back(trunk);
             m_colliders.push_back(CollisionBox::fromCenterHalf(trunk.center,trunk.size*.5f));
         }
+        else if (type == 'M')
+        {
+            Marking marking;
+            row >> marking.center.x >> marking.center.y >> marking.size.x >> marking.size.y
+                >> marking.color.r >> marking.color.g >> marking.color.b;
+            if (marking.size.x <= 0 || marking.size.y <= 0) throw std::runtime_error("Invalid baked marking");
+            m_markings.push_back(marking);
+        }
         else if (type == 'R')
         {
             Ramp r;

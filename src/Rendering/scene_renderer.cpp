@@ -4,6 +4,7 @@
 #include "texture.hpp"
 #include "Game/model_catalog.hpp"
 #include "Game/world.hpp"
+#include "Game/terrain.hpp"
 #include <glad/glad.h>
 #include <map>
 #include <tuple>
@@ -60,6 +61,34 @@ SceneRenderer::SceneRenderer(const World& world)
     };
     for(const auto& b:world.boxes()) append(b);
     for(const auto& b:world.decorations()) append(b);
+
+    // Road paint is laid over the terrain rather than resting on it: each
+    // rectangle is cut into cells no wider than a metre and every corner takes
+    // the terrain's own height, so a crossing at a graded junction follows the
+    // camber instead of floating over it.
+    const Terrain& terrain=world.terrain();
+    for(const auto& marking:world.markings()) {
+        auto& data=groups[{int(std::floor(marking.center.x/128)),int(std::floor(marking.center.y/128)),false}];
+        const int nx=std::max(1,int(std::ceil(marking.size.x/1.0f))), nz=std::max(1,int(std::ceil(marking.size.y/1.0f)));
+        auto corner=[&](int i,int j) {
+            glm::vec3 p(marking.center.x-marking.size.x*.5f+marking.size.x*float(i)/float(nx),0,
+                        marking.center.y-marking.size.y*.5f+marking.size.y*float(j)/float(nz));
+            // Just clear of the surface: enough to win the depth test at range,
+            // little enough that it never reads as a kerb.
+            p.y=terrain.heightAt(p.x,p.z)+.035f;
+            return p;
+        };
+        for(int j=0;j<nz;++j) for(int i=0;i<nx;++i) {
+            const glm::vec3 quad[4]={corner(i,j),corner(i+1,j),corner(i+1,j+1),corner(i,j+1)};
+            // Counter-clockwise seen from above, like every other surface here.
+            for(int index:{0,2,1,0,3,2}) {
+                const glm::vec3 p=quad[index];
+                const glm::vec3 n=terrain.normalAt(p.x,p.z);
+                data.min=glm::min(data.min,p);data.max=glm::max(data.max,p);
+                data.vertices.insert(data.vertices.end(),{p.x,p.y,p.z,n.x,n.y,n.z,0,0,marking.color.r,marking.color.g,marking.color.b});
+            }
+        }
+    }
     for(auto& entry:groups) {
         auto& data=entry.second;
         Material material; material.facade=data.facade;
