@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(sTA LANGUAGES C CXX)
 
+add_library(sta_models STATIC src/Rendering/model_asset.cpp src/Rendering/image_decode.cpp)
+target_include_directories(sta_models PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_features(sta_models PUBLIC cxx_std_17)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -29,6 +33,8 @@ add_executable(sTA
 	lib/imgui/backends/imgui_impl_glfw.cpp
 	lib/imgui/backends/imgui_impl_opengl3.cpp
 )
+
+target_link_libraries(sTA PRIVATE sta_models)
 
 # Copy saved assets even when only the map/shaders changed. This never runs the generator.
 set(STA_RESOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/resources")
@@ -99,6 +105,7 @@ if(BUILD_TESTING)
   else()
     target_link_libraries(sta_traffic_tests PRIVATE glfw OpenGL::GL)
   endif()
+  target_link_libraries(sta_traffic_tests PRIVATE sta_models)
   add_test(NAME traffic_patrols COMMAND sta_traffic_tests)
 endif()
 
@@ -114,4 +121,11 @@ if(BUILD_TESTING)
   target_include_directories(sta_island_tests PRIVATE "${INCLUDE_DIR}" "${PROJ_ROOT}/src")
   add_test(NAME island_roads COMMAND sta_island_tests)
   set_tests_properties(island_roads PROPERTIES WORKING_DIRECTORY "${PROJ_ROOT}")
+endif()
+
+if(BUILD_TESTING)
+  add_executable(sta_model_tests tests/model_tests.cpp)
+  target_link_libraries(sta_model_tests PRIVATE sta_models)
+  add_test(NAME imported_models COMMAND sta_model_tests)
+  set_tests_properties(imported_models PROPERTIES WORKING_DIRECTORY "${PROJ_ROOT}")
 endif()

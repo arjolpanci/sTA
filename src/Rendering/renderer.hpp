@@ -2,10 +2,14 @@
 #define RENDERER_H
 
 #include <glm/glm.hpp>
+#include <memory>
+#include <map>
+#include "Game/animation_state.hpp"
 #include "shader.hpp"
 #include "material.hpp"
 
 class Mesh;
+class ModelAsset;
 class Camera;
 class ShadowMap;
 
@@ -16,6 +20,10 @@ class Renderer
 {
 public:
     Renderer();
+    ~Renderer();
+    void drawModel(const ModelAsset& asset, const void* instance, const glm::mat4& model,
+                   const AnimationState& animation, bool shadow);
+
 
     // shadow pass: render depth only, from the light's point of view.
     // Bracket calls to drawShadow() with ShadowMap::beginCapture()/endCapture().
@@ -31,6 +39,12 @@ public:
     void draw(const Mesh& mesh, const glm::mat4& model, const Material& material);
 
 private:
+    struct ModelMesh {
+        const ModelAsset* asset=nullptr;
+        AnimationState animation;
+        std::unique_ptr<Mesh> mesh;
+    };
+    std::map<const void*,ModelMesh> m_models;
     Shader m_shader;       // basic.vert/frag - the main lit shader
     Shader m_shadowShader; // shadow.vert/frag - depth-only
 };

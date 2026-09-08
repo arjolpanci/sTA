@@ -6,6 +6,7 @@
 #include "mesh.hpp"
 #include "shadow_map.hpp"
 #include "texture.hpp"
+#include "model_asset.hpp"
 
 Renderer::Renderer()
     : m_shader("resources/shaders/basic.vert", "resources/shaders/basic.frag"),
@@ -50,4 +51,20 @@ void Renderer::draw(const Mesh& mesh, const glm::mat4& model, const Material& ma
     if (material.albedoMap)
         material.albedoMap->bind(0);
     mesh.draw();
+}
+
+Renderer::~Renderer()=default;
+void Renderer::drawModel(const ModelAsset& asset,const void* instance,const glm::mat4& model,
+                         const AnimationState& animation,bool shadow)
+{
+    const bool animated=!asset.animations().empty();
+    auto& cached=m_models[animated?instance:static_cast<const void*>(&asset)];
+    if(!cached.mesh || cached.asset!=&asset || (animated &&
+        (cached.animation.clip!=animation.clip || cached.animation.previous!=animation.previous ||
+         cached.animation.time!=animation.time || cached.animation.previousTime!=animation.previousTime || cached.animation.blend!=animation.blend))) {
+        auto data=animated?asset.vertices(animation.clip,animation.time,animation.previous,animation.previousTime,animation.blend):asset.vertices();
+        if(!cached.mesh)cached.mesh=std::make_unique<Mesh>(data,true);else cached.mesh->update(data);
+        cached.asset=&asset;cached.animation=animation;
+    }
+    if(shadow)drawShadow(*cached.mesh,model);else draw(*cached.mesh,model,Material{});
 }

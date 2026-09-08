@@ -3,7 +3,6 @@
 #include <glad/glad.h>
 #include <iostream>
 
-#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 Texture::Texture(const char* path)

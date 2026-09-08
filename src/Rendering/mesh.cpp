@@ -37,6 +37,13 @@ Mesh::~Mesh()
     glDeleteBuffers(1, &m_VBO);
 }
 
+void Mesh::update(const std::vector<float>& vertices)
+{
+    m_vertexCount=static_cast<int>(vertices.size()/(m_vertexColors?11:8));
+    glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
+    glBufferData(GL_ARRAY_BUFFER,vertices.size()*sizeof(float),vertices.data(),GL_STREAM_DRAW);
+}
+
 void Mesh::draw() const
 {
     glBindVertexArray(m_VAO);

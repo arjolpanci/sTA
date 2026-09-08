@@ -221,7 +221,9 @@
     "download": "Models/GLTF format/tree_oak.glb",
     "author": "Kenney",
     "license": "CC0-1.0",
-    "sha256": "d7fd8773674928c50c11b66d12c636d49bdcc15a8b1c7fbb98e6f63a3439a3f3"
+    "sha256": "edaf27affe1ee54ce88b6604a8cd355b14ba6b3e11e810cb645033326fc656cf",
+    "original_sha256": "d7fd8773674928c50c11b66d12c636d49bdcc15a8b1c7fbb98e6f63a3439a3f3",
+    "modification": "Scene root corrected to existing identity parent; mesh and materials unchanged."
   },
   {
     "file": "trees/tree_default.glb",
@@ -229,7 +231,9 @@
     "download": "Models/GLTF format/tree_default.glb",
     "author": "Kenney",
     "license": "CC0-1.0",
-    "sha256": "562d29638c902de3c7bee465d3a53bb77117efbc392ae04ed894faf6b5dc691d"
+    "sha256": "b57029258ad65ae19a5c43635a78fde61d5fbe1a177a65558cd82b78119c2f83",
+    "original_sha256": "562d29638c902de3c7bee465d3a53bb77117efbc392ae04ed894faf6b5dc691d",
+    "modification": "Scene root corrected to existing identity parent; mesh and materials unchanged."
   },
   {
     "file": "trees/tree_detailed.glb",
@@ -237,7 +241,9 @@
     "download": "Models/GLTF format/tree_detailed.glb",
     "author": "Kenney",
     "license": "CC0-1.0",
-    "sha256": "c041daf2f0fb1d49e4325227cbcd58667adbe51e9b55e8c1f0a94b74cc521b3b"
+    "sha256": "1bb9db1e109e7d8af5b6ea5a33901b4012173014a9fc47d1a9f791dbdff1c959",
+    "original_sha256": "c041daf2f0fb1d49e4325227cbcd58667adbe51e9b55e8c1f0a94b74cc521b3b",
+    "modification": "Scene root corrected to existing identity parent; mesh and materials unchanged."
   },
   {
     "file": "trees/tree_fat.glb",
@@ -245,7 +251,9 @@
     "download": "Models/GLTF format/tree_fat.glb",
     "author": "Kenney",
     "license": "CC0-1.0",
-    "sha256": "84b262c5dda3a91ac6c95f9d8b23a0ebbb1951d678c0e1375d3e32623cc43ee2"
+    "sha256": "d43bee6f6b8c46aace78444295373c40ea4de734c51d00a3d7cc96a88a645b3d",
+    "original_sha256": "84b262c5dda3a91ac6c95f9d8b23a0ebbb1951d678c0e1375d3e32623cc43ee2",
+    "modification": "Scene root corrected to existing identity parent; mesh and materials unchanged."
   },
   {
     "file": "trees/tree_tall.glb",
@@ -253,7 +261,9 @@
     "download": "Models/GLTF format/tree_tall.glb",
     "author": "Kenney",
     "license": "CC0-1.0",
-    "sha256": "3515a8826044d91e84e011186c86878f62024a487a079b4e32c9ac2e71994411"
+    "sha256": "f7aa691aee4df6779c0a3c79efc592d4873d04cc87745356c53f0b738cde6ada",
+    "original_sha256": "3515a8826044d91e84e011186c86878f62024a487a079b4e32c9ac2e71994411",
+    "modification": "Scene root corrected to existing identity parent; mesh and materials unchanged."
   },
   {
     "file": "trees/tree_thin.glb",
@@ -261,7 +271,9 @@
     "download": "Models/GLTF format/tree_thin.glb",
     "author": "Kenney",
     "license": "CC0-1.0",
-    "sha256": "f0f1f6861fe0446963d3be216cc628324f538bb0841bc9a8e14140313f64e2f3"
+    "sha256": "ff9742a0b4be60201303d923f480f57dae52cdd90c177b67626d631deafcd1dd",
+    "original_sha256": "f0f1f6861fe0446963d3be216cc628324f538bb0841bc9a8e14140313f64e2f3",
+    "modification": "Scene root corrected to existing identity parent; mesh and materials unchanged."
   },
   {
     "file": "trees/tree_pineDefaultA.glb",
@@ -269,7 +281,9 @@
     "download": "Models/GLTF format/tree_pineDefaultA.glb",
     "author": "Kenney",
     "license": "CC0-1.0",
-    "sha256": "60d8f352fa3659ed275e06cbddfecf8f92c8effe2977c2f2d7b29b6c9b582e46"
+    "sha256": "744e840445f30141fc0097fb1e0b5c81365c80634fe3141391dadaa0a0a07046",
+    "original_sha256": "60d8f352fa3659ed275e06cbddfecf8f92c8effe2977c2f2d7b29b6c9b582e46",
+    "modification": "Scene root corrected to existing identity parent; mesh and materials unchanged."
   },
   {
     "file": "trees/tree_pineDefaultB.glb",
@@ -277,7 +291,9 @@
     "download": "Models/GLTF format/tree_pineDefaultB.glb",
     "author": "Kenney",
     "license": "CC0-1.0",
-    "sha256": "a752ea5775c6fb17513f764d57ead534f44dfdd85188b842995ac9ba0e7065c1"
+    "sha256": "bb504167326883119e7a85ddfc97311e9f9529a4acd03cfbfa43a47eba6be08e",
+    "original_sha256": "a752ea5775c6fb17513f764d57ead534f44dfdd85188b842995ac9ba0e7065c1",
+    "modification": "Scene root corrected to existing identity parent; mesh and materials unchanged."
   },
   {
     "file": "trees/tree_pineTallA.glb",
@@ -285,7 +301,9 @@
     "download": "Models/GLTF format/tree_pineTallA.glb",
     "author": "Kenney",
     "license": "CC0-1.0",
-    "sha256": "e0a56eb196d8a64ba86c7304d607136e17e6f9ad748dffcf86bd53b18b91b196"
+    "sha256": "cb74b48de7bf7817f0bf8face1643de0361833d4718396f4771a5e669f392605",
+    "original_sha256": "e0a56eb196d8a64ba86c7304d607136e17e6f9ad748dffcf86bd53b18b91b196",
+    "modification": "Scene root corrected to existing identity parent; mesh and materials unchanged."
   },
   {
     "file": "trees/tree_pineRoundC.glb",
@@ -293,7 +311,9 @@
     "download": "Models/GLTF format/tree_pineRoundC.glb",
     "author": "Kenney",
     "license": "CC0-1.0",
-    "sha256": "29080a4935bae6b4ab29066f22c99c58f88b23ce4e2f79b4dcbb5e76de73f69d"
+    "sha256": "dcc6190bddc9873dc86c79939a71dc0a38420cb39dd1a41fce5e0e3f26343158",
+    "original_sha256": "29080a4935bae6b4ab29066f22c99c58f88b23ce4e2f79b4dcbb5e76de73f69d",
+    "modification": "Scene root corrected to existing identity parent; mesh and materials unchanged."
   },
   {
     "file": "trees/tree_palm.glb",
@@ -301,7 +321,9 @@
     "download": "Models/GLTF format/tree_palm.glb",
     "author": "Kenney",
     "license": "CC0-1.0",
-    "sha256": "27bbb23d26ed788d84de6df2f7fab0acc3fe0ff16c7d08cdcfa1fffcb11de324"
+    "sha256": "ed4b8ac4bc78863ef1e44f0a59cc33d489ec48c86f6090efa56042b830b4719d",
+    "original_sha256": "27bbb23d26ed788d84de6df2f7fab0acc3fe0ff16c7d08cdcfa1fffcb11de324",
+    "modification": "Scene root corrected to existing identity parent; mesh and materials unchanged."
   },
   {
     "file": "trees/tree_palmBend.glb",
@@ -309,7 +331,9 @@
     "download": "Models/GLTF format/tree_palmBend.glb",
     "author": "Kenney",
     "license": "CC0-1.0",
-    "sha256": "8af9dae16ce3c03183f9457996ebdd135167199514e8f4f944ee2bd82828d5c9"
+    "sha256": "1b345328bc8d7033e865625a62c45204cc099a2d80148eb58051b8a071b1da3a",
+    "original_sha256": "8af9dae16ce3c03183f9457996ebdd135167199514e8f4f944ee2bd82828d5c9",
+    "modification": "Scene root corrected to existing identity parent; mesh and materials unchanged."
   },
   {
     "file": "cars/Textures/colormap.png",

@@ -10,7 +10,9 @@ https://creativecommons.org/publicdomain/zero/1.0/
 They can be copied, modified and redistributed, including commercially, without attribution.
 Credit is retained voluntarily. See `manifest.json` for original pack pages, download locations
 and SHA-256 hashes. Quaternius GLB exports were downloaded from the artist's Poly Pizza listings.
-Kenney GLBs and their palette texture were extracted unmodified from the official pack ZIPs.
+Kenney GLBs and their palette texture were extracted from the official pack ZIPs.
+The trees have a scene-root repair for an old UniGLTF export error; see
+`tools/repair_tree_gltf.py` and the original/repaired hashes in the manifest.
 The model files retain all original animations. No runtime network access is required.
 
 Kenney's original license notices are retained alongside the models. The Quaternius pack pages

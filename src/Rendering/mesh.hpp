@@ -17,6 +17,7 @@ public:
     Mesh& operator=(const Mesh&) = delete;
 
     void draw() const;
+    void update(const std::vector<float>& vertices);
 
     // vertex data factories
     static std::vector<float> cubeVertices();                 // unit cube centered at origin
