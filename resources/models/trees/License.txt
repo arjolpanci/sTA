@@ -1,23 +1,10 @@
-	
+Poly Haven scanned trees - CC0 1.0 Universal (public domain)
+https://creativecommons.org/publicdomain/zero/1.0/
 
-	Nature Kit (2.1)
+Source: https://polyhaven.com/models  (per-model pages are listed in ../manifest.json)
 
-	Created/distributed by Kenney (www.kenney.nl)
-	Creation date: 29-04-2020 01:02
+Free to use in personal and commercial projects. Attribution is appreciated, not required.
+This notice records the license stated by Poly Haven for every asset it publishes.
 
-			------------------------------
-
-	License: (Creative Commons Zero, CC0)
-	http://creativecommons.org/publicdomain/zero/1.0/
-
-	This content is free to use in personal, educational and commercial projects.
-	Support us by crediting Kenney or www.kenney.nl (this is not mandatory)
-
-			------------------------------
-
-	Donate:   http://support.kenney.nl
-	Request:  http://request.kenney.nl
-	Patreon:  http://patreon.com/kenney/
-
-	Follow on Twitter for updates:
-	http://twitter.com/KenneyNL
+The committed .glb files are decimated, re-textured derivatives of those downloads;
+tools/import_polyhaven_trees.py reproduces them from the original URLs.
