@@ -11,8 +11,8 @@
   ],
   "road_mask_grid": 4097,
   "buildings": 557,
-  "scene_records": 29842,
-  "vehicles": 80,
+  "scene_records": 29938,
+  "vehicles": 86,
   "pedestrians": 101,
   "road_segments": 2027,
   "name": "Twin Palms",
@@ -173,7 +173,7 @@
   ],
   "sha256": {
     "island.bin": "16f2ad3f8aee12a290b02772b7887906bd9572b1869dbfa2ec0b2280fa04f457",
-    "island.scene": "63f9e8027348fc73b64155a3e8d4c2a2899a2a0bde9ca87e782ba6b6e40ca8b8",
+    "island.scene": "04e1ffeb8998f7bd8fbfda20ac48048546dd725c489d2be99706fe29f6099810",
     "island-overview.png": "1fbe0a4bd1f68408574bd795955add28668c7d1f0a8aaf6e10a2e70711952f89"
   }
 }

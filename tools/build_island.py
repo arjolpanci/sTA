@@ -339,9 +339,11 @@ def main(output):
         if not clear_of_roads(bx,bz,24): continue
         pads.append((bx,bz,24,24,10))
         yaw=math.degrees(math.atan2(dx,dz))
-        h=12+(i%5)*5
+        h=12+((i//5)%5)*5
         box(bx,10,bz,32,h,30,(.76+(i%3)*.06,.62+(i%4)*.06,.63+(i%2)*.12),True,True,yaw)
         box(bx,10+h,bz,34,.6,32,(.88,.85,.74),False,False,yaw)
+        box(bx,10+h+.6,bz,22,3,18,(.75,.84,.81),False,False,yaw)
+        box(bx+dx*16,13,bz+dz*16,28,.3,3,(.3,.63,.61),False,False,yaw)
     # Preserve the entire vehicle catalog with curbside parking around the districts.
     for i in range(VEHICLE_MODELS):
         records.append(('V',i,90,0,1,-150+i*15,8,3.5))
@@ -363,8 +365,24 @@ def main(output):
                 box(bx,y,bz,16,5+i%4,19,(.72+(i%3)*.07,.66+(i%4)*.04,.57+(i%2)*.12),True,True,yaw)
                 box(bx,y+5+i%4,bz,18,.5,21,(.46,.27,.20),False,False,yaw)
                 tree(bx+dx*side*15,y,bz+dz*side*15,1.1)
-    # Long-distance traffic uses a closed, continuous road itinerary.
-    # The sampled frontage can also be explored without traffic turning in place.
+    # Closed inter-district circuits reuse the exact road splines. Offset copies
+    # supply traffic near different portions without activating the entire route.
+    western=[*neighborhood_paths[1],(-1650,12,840),*list(reversed(spline(links[5])))[1:],
+             (-1440,10,90),(-1680,10,90)]
+    nearest=lambda point:min(range(len(ocean)),key=lambda i:math.dist(ocean[i],point))
+    coast=list(reversed(ocean[nearest((1450,10,-640)):nearest((1490,10,600))+1]))
+    eastern=[*spline(links[1]),(1170,10,420),(1170,10,600),(1230,10,600),
+             *spline(links[8])[1:],*coast[1:],*list(reversed(spline(links[7]))),
+             (750,12,-660),(750,12,-540),(780,12,-540),
+             *list(reversed(spline(links[2])))[1:],(630,10,-90),(630,10,90),(750,10,90),(750,10,120)]
+    for route in (western,eastern):
+        # Avoid zero-length closing segments while preserving the shared path.
+        route=[p for i,p in enumerate(route) if i==0 or math.dist(p,route[i-1])>.01]
+        if math.dist(route[0],route[-1])<.01: route.pop()
+        for fraction in (0,.25,.5):
+            index=int(len(route)*fraction); shifted=route[index:]+route[:index]
+            a,b=shifted[:2];yaw=math.degrees(math.atan2(b[0]-a[0],b[2]-a[2]))
+            records.append(('V',0,yaw,7,len(shifted),*(v for p in shifted for v in p)))
     pad_cells={}
     for pad in pads:
         cx,cz,rx,rz,_=pad

@@ -6,22 +6,21 @@ sTA (small Theft Auto) is a small GTA-inspired C++ / OpenGL sandbox. The engine 
 
 ![Street level](docs/street.png)
 
-## Harbor Island
+## Twin Palms
 
-The playable map is a **saved 2,048 × 2,048 metre island heightfield**, with an irregular coast, beaches, a tidal channel and mountain peaks around 175 metres. Terrain, roads, buildings, scenery and patrol routes are baked into versioned assets. **The game never generates terrain at startup.**
+The playable world is an original Vice City–inspired **6,144 × 6,144 metre coastal map**, nine times the previous map's area. Two islands face an open bay, with two raised bridges connecting them. Its terrain, roads, landmarks, buildings and actor routes are saved assets; the game never generates noise or city layouts at startup.
 
-![Island overview](docs/island.png)
+![Twin Palms overview](resources/maps/island-overview.png)
 
-- Four districts: Downtown at 8 metres, East gardens at 26 metres, Highland at 32 metres, and West harbor across the channel. There are 122 buildings with varied heights and procedural façades.
-- Authored roads connect the districts, southern parkland, winding mountain road and lookout, sampled through Catmull-Rom splines into 459 segments so the rural links and the mountain road curve instead of running ruled. Two raised bridges cross real water, with open passage underneath.
-- Road coverage is baked on its own 2,049 x 2,049 grid, four times finer than the terrain, so a five-metre mountain road has edges rather than staircase steps. Crossings and centre lines are surface records the loader lays over the terrain, so they follow every camber and grade.
-- Parks, wooded hills, beaches, piers, sidewalks, crossings, awnings and rooftop equipment. Terrain shading blends grass, sand, exposed rock and asphalt.
-- About 1,300 scanned street props - lamps, hydrants, benches, bins, utility boxes, barriers, a tarpaulin-covered car - placed along the road network at load time, on a regular cadence for the lamps and at random for the clutter. Placement walks outward from the carriageway until the ground steps up, so furniture stands on the pavement rather than the verge, and is skipped at junction mouths.
-- Animated waves and ripples, depth-dependent water color, Fresnel/specular highlights and moving shoreline foam. The ocean recenters around the camera beyond the island, avoiding a visible edge. [Shoreline preview](docs/shore.png).
-- Thirty vehicles (six parked, 24 AI), using 19 models, and 34 animated pedestrians using eight Quaternius models. Inter-district traffic crosses the bridges and follows the mountain and coastal roads.
-- Basic swimming keeps the player afloat, with slower movement in deep water. Submerged cars recover to a clear starting-street position, keeping exploration playable.
-- A north-up island minimap and an Island debug page with an aerial camera. Player quick travel includes the beach, west bridge, Highland and mountain lookout.
-- Optional courier missions: F1 → Missions → **Start courier run** or **Start and play**. Stop in the teal marker for 1.5 seconds to earn $150. Five destinations now cover multiple districts. Progress lasts for the current session.
+[Landmark guide](docs/twin-palms.svg) · [Ocean Drive](docs/ocean-drive.jpg) · [Sierra forest](docs/sierra-forest.jpg) · [Mercy Hospital](docs/mercy-hospital.jpg)
+
+- Ocean Drive follows the eastern coast, with pastel hotels, lane markings, lamps and a promenade. Sunrise Beach and South Beach provide two sandy waterfronts.
+- Bayfront, the Art Deco quarter, Palm residential, Marina village and the western Garden suburb connect through arterial roads and curved residential streets. Houses along the curved streets face their frontage.
+- Mercy Hospital and Bay Police have distinct wings, entrance courtyards and rooftop markers. Parks are scattered between neighborhoods.
+- The western Sierra rises above 300 metres, with larger forest trees, a winding scenic road, a lookout and an earth hiking trail.
+- More than 500 buildings, the full 19-model vehicle catalog, varied trees and baked street furniture. Ambient traffic and animated pedestrians activate around the player.
+- Full collision and terrain metadata remain available everywhere. Detailed terrain and building meshes stream gradually, with distance LOD, independent camera/shadow culling, and hard residency caps. Returning to an area recreates its ambient actors from saved routes.
+- Animated ocean, swimming, vehicle recovery, a north-up minimap, landmark quick travel (F1 → Player), and optional courier missions between neighborhoods. Hospital and police markers appear on the map; these are exterior landmarks rather than new service/interior gameplay.
 
 ### Rebuilding the map deliberately
 
@@ -75,7 +74,7 @@ car marque is a trademark question separate from any asset licence. See
 Cars keep their source proportions, with collision bounds derived from their model size.
 Trees retain solid trunk colliders; repeated trees and street props use shared GPU
 meshes and instanced draws.
-The terrain, road layout and actor routes are unchanged by the asset replacement.
+The imported model catalog is shared by the streamed Twin Palms placements.
 
 The loader uses cgltf 1.15 (MIT), GPU skeletal skinning, quaternion interpolation and
 short animation crossfades. It supports the selected assets' linear/step animation,
@@ -130,19 +129,33 @@ checked against a CPU reference in the model tests.
 Camera-frustum and light-frustum tests cull actors, scenery and terrain chunks before
 drawing. Off-screen characters that cannot cast visible shadows skip pose evaluation.
 Animation detail follows distance: full rate within 25 metres, 30 Hz beyond that, and
-10 Hz beyond 75 metres. Physics and root movement remain at 60 Hz. Geometry LOD is not
-yet implemented; repeated scenery is instanced and distance-culled.
+10 Hz beyond 75 metres. Physics and root movement remain at 60 Hz.
+
+Terrain uses 192 m tiles: 6 m detail nearby, 24 m sampling farther away, and a small
+48 m horizon mesh. A single background job builds at most two tiles at a time;
+completed meshes upload on the render thread. Skirts close detail boundaries.
+At most 96 detailed terrain tiles and 96 building/paint batches remain resident.
+Buildings are built at two batches per frame; tree and prop instances are gathered
+from nearby spatial cells. Nearby coverage in all directions preserves shadow
+casters and gives camera turns a buffer before new scenery arrives.
+
+At most 24 ambient cars and 40 pedestrians are active, with one successful activation
+per rendered frame. Distant actors retire after 750 m; the driven car stays alive.
+Manually spawned debug cars are outside the ambient cap. Shared model geometry,
+textures, height/road grids, placement records and collision indices stay resident;
+the F1 Rendering memory counter specifically measures streamed detail meshes.
 
 The debug Overview retains timings for the last 120 gameplay frames, including the
 95th percentile. Its current/menu FPS is separate, so pausing does not hide a slow
 active frame. Render/present time includes VSync waits during ordinary play.
 
 Run `./sTA --benchmark` from a build directory for an uncapped comparison of paused
-and active downtown rendering. It warms each phase, measures 120 frames, waits for GPU
+and active rendering in downtown, Ocean Drive and the Sierra. It warms each phase, measures 120 frames, waits for GPU
 completion and reports the renderer, resolution, median/p95 frame time, simulation,
 render submission/presentation, GPU wait, pose updates, culled model passes and palette
-upload size. These measurements describe this camera/scene; they are not a guarantee
+upload size, actor counts, resident batches and detailed mesh memory. These measurements describe the sampled views; they are not a guarantee
 for every view. Use a Release build for representative gameplay performance.
+See [Twin Palms measurements and validation](docs/twin-palms-performance.md).
 
 ## Verification
 

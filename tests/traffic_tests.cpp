@@ -44,10 +44,12 @@ int main() {
     }
     if (distance < 180) {std::cerr << "Pedestrian stopped making progress: " << distance << '\n'; return 1;}
     // Exercise the actual baked inter-district patrols, not just a flat block.
+    int longRoutes=0;
     for (const auto& spawn : world.vehicleSpawns()) {
         Vehicle routed(static_cast<VehicleType>(spawn.type),spawn.route.front(),spawn.yaw);
         if (world.collides(routed.collisionBox())) {std::cerr << "Baked vehicle spawn intersects the world at " << spawn.route.front().x << "," << spawn.route.front().y << "," << spawn.route.front().z << " terrain " << world.terrain().heightAt(spawn.route.front().x,spawn.route.front().z) << "\n"; return 1;}
         if (spawn.speed<=0 || spawn.route.size()<=5) continue;
+        ++longRoutes;
         routed.maxSpeed=spawn.speed; routed.setPatrol(WaypointPath(spawn.route));
         int stuck=0;
         float traveled=0;
@@ -68,6 +70,7 @@ int main() {
         }
         if(traveled<1800) {std::cerr << "Inter-district patrol made insufficient progress\n"; return 1;}
     }
+    if(longRoutes<6) {std::cerr<<"Missing inter-district traffic circuits\n";return 1;}
     camera.follow({0,1.5f,0});
     camera.avoidObstacles([](const glm::vec3& p) {return p.z > 2;});
     if (camera.position().z > 2) {std::cerr << "Camera clips obstacle\n"; return 1;}
