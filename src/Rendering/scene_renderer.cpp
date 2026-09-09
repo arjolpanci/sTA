@@ -159,6 +159,7 @@ void SceneRenderer::draw(Renderer& renderer,const glm::vec3& camera) const
             renderer.draw(*batch.mesh,glm::mat4(1),batch.material);
     for(auto& model:m_models) {
         const int count=gather(model,renderer,camera,false,model.distance);
+        if(!count)continue;
         for(const auto& surface:model.surfaces)
             renderer.drawInstanced(*surface.mesh,model.buffer,count,surface.material);
     }
@@ -171,6 +172,7 @@ void SceneRenderer::drawShadow(Renderer& renderer,const glm::vec3& focus) const
             renderer.drawShadow(*batch.mesh,glm::mat4(1),batch.material);
     for(auto& model:m_models) {
         const int count=gather(model,renderer,focus,true,210);
+        if(!count)continue;
         for(const auto& surface:model.surfaces)
             renderer.drawShadowInstanced(*surface.mesh,model.buffer,count,surface.material);
     }

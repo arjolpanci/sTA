@@ -29,9 +29,11 @@ glm::vec3 displayColor(glm::vec3 c) {
 }
 struct ModelAsset::Impl {
     struct Vertex { glm::vec3 p,n,color; glm::vec2 uv; glm::uvec4 joints{0}; glm::vec4 weights{0}; };
-    struct Part { size_t node; cgltf_skin* skin; size_t surface; std::vector<Vertex> vertices; std::vector<size_t> indices; };
+    struct Part { size_t node; cgltf_skin* skin; size_t surface; std::vector<Vertex> vertices; std::vector<size_t> indices; size_t boneOffset=0; };
     std::unique_ptr<cgltf_data, decltype(&cgltf_free)> data{nullptr,cgltf_free};
     std::vector<Part> parts;
+    struct PaletteBone { size_t node; glm::mat4 inverseBind; };
+    std::vector<PaletteBone> paletteBones;
     std::vector<Surface> surfaces;
     std::vector<ImageData> images;
     glm::vec3 offset{0}, dimensions{1}; float scale=1;
@@ -200,6 +202,27 @@ ModelAsset::ModelAsset(const std::string& path,bool centerFootprint):m(std::make
         }
     }
     if(m->parts.empty())throw std::runtime_error("Empty model: "+path);
+    // Material primitives of one mesh all share a skin. Build its palette once,
+    // instead of repeating every bone (and matrix inverse) for each material.
+    std::map<const cgltf_skin*,size_t> skinOffsets;
+    std::map<size_t,size_t> rigidOffsets;
+    for(auto& part:m->parts) {
+        if(part.skin) {
+            auto known=skinOffsets.find(part.skin);
+            if(known!=skinOffsets.end()){part.boneOffset=known->second;continue;}
+            part.boneOffset=m->paletteBones.size();skinOffsets[part.skin]=part.boneOffset;
+            for(size_t i=0;i<part.skin->joints_count;++i) {
+                glm::mat4 bind(1);
+                if(part.skin->inverse_bind_matrices)cgltf_accessor_read_float(part.skin->inverse_bind_matrices,i,glm::value_ptr(bind),16);
+                m->paletteBones.push_back({size_t(part.skin->joints[i]-raw->nodes),bind});
+            }
+        } else {
+            auto known=rigidOffsets.find(part.node);
+            if(known!=rigidOffsets.end()){part.boneOffset=known->second;continue;}
+            part.boneOffset=m->paletteBones.size();rigidOffsets[part.node]=part.boneOffset;
+            m->paletteBones.push_back({part.node,glm::mat4(1)});
+        }
+    }
     auto vertices=m->vertices(hasAnimation("Idle")?"Idle":"",0,"",0,1,-1);
     glm::vec3 min(std::numeric_limits<float>::max()),max(-std::numeric_limits<float>::max());
     for(size_t i=0;i<vertices.size();i+=11) {glm::vec3 p(vertices[i],vertices[i+1],vertices[i+2]);min=glm::min(min,p);max=glm::max(max,p);}
@@ -227,23 +250,20 @@ std::shared_ptr<const ModelAsset> ModelAsset::load(const std::string& path) {
 bool ModelAsset::animated() const{return m->data->animations_count!=0;}
 std::vector<float> ModelAsset::skinVertices() const {return skinBindVertices(-1);}
 std::vector<float> ModelAsset::surfaceSkinVertices(size_t surface) const {return skinBindVertices(int(surface));}
-// The bone offsets have to be walked over every part, not just the requested
-// surface, so that joint indices keep addressing the whole asset's palette.
+// Each material references the shared skin offset assigned once during loading.
 std::vector<float> ModelAsset::skinBindVertices(int surfaceFilter) const {
     std::vector<float> out;
     size_t count=0;for(const auto& part:m->parts)if(surfaceFilter<0||part.surface==size_t(surfaceFilter))count+=part.indices.size();
     out.reserve(count*19);
-    size_t boneOffset=0;
     for(const auto& part:m->parts) {
-        if(surfaceFilter>=0 && part.surface!=size_t(surfaceFilter)) {boneOffset+=part.skin?part.skin->joints_count:1;continue;}
+        if(surfaceFilter>=0 && part.surface!=size_t(surfaceFilter)) continue;
         for(size_t index:part.indices) {
             const auto& v=part.vertices[index];
             glm::vec4 joints=part.skin?glm::vec4(v.joints):glm::vec4(0);
-            joints+=glm::vec4(float(boneOffset));auto weights=part.skin?v.weights:glm::vec4(1,0,0,0);
+            joints+=glm::vec4(float(part.boneOffset));auto weights=part.skin?v.weights:glm::vec4(1,0,0,0);
             out.insert(out.end(),{v.p.x,v.p.y,v.p.z,v.n.x,v.n.y,v.n.z,v.uv.x,v.uv.y,v.color.r,v.color.g,v.color.b,
                 joints.x,joints.y,joints.z,joints.w,weights.x,weights.y,weights.z,weights.w});
         }
-        boneOffset+=part.skin?part.skin->joints_count:1;
     }
     return out;
 }
@@ -251,18 +271,12 @@ std::vector<glm::vec4> ModelAsset::skinPalette(const std::string& clip,float tim
     auto global=m->transforms(clip,time,previous,previousTime,std::clamp(blend,0.0f,1.0f));
     auto normalize=glm::scale(glm::mat4(1),glm::vec3(m->scale))*glm::translate(glm::mat4(1),-m->offset);
     std::vector<glm::vec4> palette;
-    for(const auto& part:m->parts) {
-        size_t count=part.skin?part.skin->joints_count:1;
-        for(size_t i=0;i<count;++i) {
-            glm::mat4 matrix=global[part.node];
-            if(part.skin) {
-                glm::mat4 bind(1);if(part.skin->inverse_bind_matrices)cgltf_accessor_read_float(part.skin->inverse_bind_matrices,i,glm::value_ptr(bind),16);
-                matrix=global[part.skin->joints[i]-m->data->nodes]*bind;
-            }
-            auto normal=glm::transpose(glm::inverse(glm::mat3(matrix)));matrix=normalize*matrix;
-            for(int c=0;c<4;++c)palette.push_back(matrix[c]);
-            for(int c=0;c<3;++c)palette.push_back(glm::vec4(normal[c],0));
-        }
+    palette.reserve(m->paletteBones.size()*7);
+    for(const auto& bone:m->paletteBones) {
+        auto matrix=global[bone.node]*bone.inverseBind;
+        auto normal=glm::transpose(glm::inverse(glm::mat3(matrix)));matrix=normalize*matrix;
+        for(int c=0;c<4;++c)palette.push_back(matrix[c]);
+        for(int c=0;c<3;++c)palette.push_back(glm::vec4(normal[c],0));
     }
     return palette;
 }

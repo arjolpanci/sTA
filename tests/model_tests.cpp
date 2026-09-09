@@ -45,6 +45,10 @@ int main() {
             require(change>1,"Walking animation does not deform the model");
             auto loop=model.vertices("Walk",model.duration("Walk"));require(loop==start,"Animation loop seam/time wrapping failed");
             auto blend=model.vertices("Run",.2f,"Idle",.3f,0);auto old=model.vertices("Idle",.3f); for(size_t i=0;i<blend.size();++i)require(std::abs(blend[i]-old[i])<.0001f,"Crossfade start must preserve previous pose");
+            const auto paletteSize=model.skinPalette("Idle",0).size();
+            const auto name=file.path().filename().string();
+            if(name.find("men-")==0 || name.find("women-")==0)
+                require(paletteSize==31*7,"NPC materials must share one 31-bone palette");
             auto bind=model.skinVertices();
             require(bind.size()/19==base.size()/11,"GPU bind mesh differs from CPU topology");
             for(const auto& clip:model.animations()) {
