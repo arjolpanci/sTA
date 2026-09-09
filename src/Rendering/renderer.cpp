@@ -134,7 +134,7 @@ void Renderer::drawModel(const ModelAsset& asset,const void* instance,const glm:
     }
     const auto& state=sampled;
     auto& pose=m_poses[instance];
-    if(!pose.buffer || pose.asset!=&asset || pose.animation.clip!=state.clip || pose.animation.previous!=state.previous ||
+    if(!pose.buffer || pose.assetKey!=asset.cacheKey() || pose.animation.clip!=state.clip || pose.animation.previous!=state.previous ||
        pose.animation.time!=state.time || pose.animation.previousTime!=state.previousTime || pose.animation.blend!=state.blend) {
         auto palette=asset.skinPalette(state.clip,state.time,state.previous,state.previousTime,state.blend);
         ++stats.poseUpdates;stats.paletteBytes+=palette.size()*sizeof(glm::vec4);
@@ -142,7 +142,7 @@ void Renderer::drawModel(const ModelAsset& asset,const void* instance,const glm:
         glBindBuffer(GL_TEXTURE_BUFFER,pose.buffer);
         glBufferData(GL_TEXTURE_BUFFER,palette.size()*sizeof(glm::vec4),palette.data(),GL_STREAM_DRAW);
         glActiveTexture(GL_TEXTURE2);glBindTexture(GL_TEXTURE_BUFFER,pose.texture);glTexBuffer(GL_TEXTURE_BUFFER,GL_RGBA32F,pose.buffer);
-        pose.asset=&asset;pose.animation=state;
+        pose.assetKey=asset.cacheKey();pose.animation=state;
     }
     glActiveTexture(GL_TEXTURE2);glBindTexture(GL_TEXTURE_BUFFER,pose.texture);
     auto& shader=shadow?m_skinShadowShader:m_skinShader;use(shader);shader.setMat4("model",model);
@@ -156,7 +156,7 @@ void Renderer::drawModel(const ModelAsset& asset,const void* instance,const glm:
 // (animation happens in the skin palette, not here) and so are the textures.
 const Renderer::Model& Renderer::modelFor(const ModelAsset& asset)
 {
-    auto& built=m_models[&asset];
+    auto& built=m_models[asset.cacheKey()];
     if(!built.surfaces.empty()) return built;
     auto texture=[&](int image)->const Texture* {
         if(image<0) return nullptr;

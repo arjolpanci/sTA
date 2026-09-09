@@ -27,6 +27,7 @@ public:
     ~Renderer();
     struct Stats { int poseUpdates=0, modelDraws=0, culledModels=0; size_t paletteBytes=0; };
     Stats stats;
+    void forgetInstance(const void* instance) { m_poses.erase(instance); }
     void setCamera(const Camera& camera,float aspect);
     bool visibleSphere(const glm::vec3& center,float radius,bool shadow=false) const;
 
@@ -63,12 +64,12 @@ private:
         std::map<int,std::unique_ptr<Texture>> textures;
     };
     struct Pose {
-        const ModelAsset* asset=nullptr;
+        std::string assetKey;
         AnimationState animation;
         unsigned int buffer=0, texture=0;
         ~Pose();
     };
-    std::map<const ModelAsset*,Model> m_models;
+    std::map<std::string,Model> m_models;
     std::map<const void*,Pose> m_poses;
     Shader m_shader, m_shadowShader, m_skinShader, m_skinShadowShader, m_instanceShader, m_instanceShadowShader;
     Shader* m_active=nullptr;

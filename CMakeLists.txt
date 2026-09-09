@@ -36,7 +36,8 @@ add_executable(sTA
 	lib/imgui/backends/imgui_impl_opengl3.cpp
 )
 
-target_link_libraries(sTA PRIVATE sta_models)
+find_package(Threads REQUIRED)
+target_link_libraries(sTA PRIVATE sta_models Threads::Threads)
 
 # Copy saved assets even when only the map/shaders changed. This never runs the generator.
 set(STA_RESOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/resources")

@@ -66,6 +66,7 @@ void Sky::draw(const Camera& camera, float aspect, const Lighting& lighting, flo
     m_shader.use();
     m_shader.setMat4("inverseViewProjection", glm::inverse(projection * glm::mat4(glm::mat3(camera.viewMatrix()))));
     m_shader.setVec3("sunDirection", lighting.direction);
+    m_shader.setVec3("fogColor", lighting.fogColor);
     m_shader.setFloat("sunElevation", lighting.sunElevation);
     m_shader.setFloat("hours", hours);
     m_shader.setFloat("time", time);

@@ -31,6 +31,7 @@ public:
     ~ModelAsset();
     ModelAsset(const ModelAsset&) = delete;
     ModelAsset& operator=(const ModelAsset&) = delete;
+    const std::string& cacheKey() const { return m_cacheKey; }
     glm::vec3 size() const;
     bool animated() const;
     size_t surfaceCount() const;
@@ -58,4 +59,5 @@ private:
     std::vector<float> skinBindVertices(int surfaceFilter) const;
     struct Impl;
     std::unique_ptr<Impl> m;
+    std::string m_cacheKey;
 };

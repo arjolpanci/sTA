@@ -22,6 +22,8 @@
 #include "Rendering/shadow_map.hpp"
 #include "Rendering/texture.hpp"
 #include "Game/pedestrian.hpp"
+#include "Game/model_catalog.hpp"
+#include "Rendering/model_asset.hpp"
 #include "Game/waypoint_path.hpp"
 
 namespace
@@ -98,24 +100,24 @@ bool Game::init()
 
     // player
     auto player = std::make_unique<Player>();
-    player->position = glm::vec3(0.0f, 8.0f, 0.0f);
+    player->position = {0,m_world.groundHeightAt(0,0),0};
+    for(const auto& place:m_world.landmarks()) if(place.kind=="spawn") player->position=place.position;
+    for(const auto& place:m_world.landmarks())
+        if(place.kind=="spawn" || place.kind=="road" || place.kind=="hospital" || place.kind=="police" || place.name=="Marina village") {
+            auto stop=place.position;stop.y=m_world.groundHeightAt(stop.x,stop.z);
+            m_deliveryStops.push_back(stop);
+        }
+    if(m_deliveryStops.empty()) m_deliveryStops.push_back(player->position);
     m_player = player.get();
     m_actors.push_back(std::move(player));
     m_controlled = m_player;
 
-    // Actor placements and patrols are part of the saved map asset.
-    for (const auto& spawn : m_world.vehicleSpawns())
-    {
-        auto car=std::make_unique<Vehicle>(static_cast<VehicleType>(spawn.type), spawn.route.front(), spawn.yaw);
-        if (spawn.speed > 0) {car->maxSpeed=spawn.speed; car->setPatrol(WaypointPath(spawn.route));}
-        m_vehicles.push_back(car.get()); m_actors.push_back(std::move(car));
-    }
-    int pedestrianModel=0;
-    for (const auto& spawn : m_world.pedestrianSpawns())
-    {
-        auto ped=std::make_unique<Pedestrian>(spawn.route.front(), WaypointPath(spawn.route), spawn.color, pedestrianModel++);
-        ped->walkSpeed=spawn.speed; m_actors.push_back(std::move(ped));
-    }
+    // Decode the finite shared actor catalog once. Ambient placements remain
+    // metadata until activated; moving to a new neighborhood never decodes glTF.
+    for(const auto* model:VehicleModels) m_actorAssets.push_back(ModelAsset::load("resources/models/cars/"+std::string(model)+".glb"));
+    for(int i=0;i<8;++i) m_actorAssets.push_back(ModelAsset::load("resources/models/characters/"+std::string(i<4?"men-":"women-")+std::to_string(i%4)+".glb"));
+    m_streamedVehicles.resize(m_world.vehicleSpawns().size(),nullptr);
+    m_streamedPedestrians.resize(m_world.pedestrianSpawns().size(),nullptr);
 
     // debug UI: panels are registered here, once, by whatever owns the data
     // they show. Adding a new panel elsewhere never touches this file.
@@ -196,14 +198,11 @@ bool Game::init()
                 if (collisionPredicateFor(m_player)(m_player->collisionBox())) m_player->position = previous;
                 else m_player->resetMotion();
             };
-            travel("City spawn", {0, 8, 0});
-            ImGui::SameLine(); travel("Ramp yard", {-98, 8.16f, 20});
-            ImGui::SameLine(); travel("Park", {30, 8.16f, 20});
-            travel("West bridge", {-480, 12, 120});
-            ImGui::SameLine(); travel("Highland", {0, 32, -330});
-            ImGui::SameLine(); travel("Mountain lookout", {130, 110, -500});
-            travel("East gardens", {390, 26, 0});
-            ImGui::SameLine(); travel("Beach", {0, m_world.groundHeightAt(0, 560), 560});
+            for(const auto& place:m_world.landmarks()) {
+                glm::vec3 destination=place.position;
+                destination.y=m_world.groundHeightAt(destination.x,destination.z);
+                travel(place.name.c_str(),destination);
+            }
         }
     });
 
@@ -230,7 +229,7 @@ bool Game::init()
         auto position=m_controlled->collisionBox().center;
         ImGui::Text("Baked map: %.0f x %.0f m  |  Sea level %.0f m", terrain.extent(), terrain.extent(), terrain.seaLevel());
         ImGui::Text("Terrain here: %.1f m  |  Roads: %zu", terrain.heightAt(position.x,position.z),m_world.roads().size());
-        ImGui::TextWrapped("Downtown in the center; West harbor across the bridges; East gardens on the eastern terrace; Highland and the lookout in the north. Quick travel is on the Player page.");
+        ImGui::TextWrapped("Twin Palms: Ocean Drive and beaches on the eastern island; civic center, garden suburbs and the forested Sierra on the western island. Two causeways cross the bay. Quick travel is on the Player page.");
         if (ImGui::Button("Aerial camera")) {
             m_camera=Camera(); m_camera.maxDistance=1800;
             m_camera.processScroll(-1200); m_camera.processMouse(0,400);
@@ -244,7 +243,9 @@ bool Game::init()
     });
 
     m_debugUI.addPanel("Rendering", [this]() {
-        ImGui::TextUnformatted("Baked island: 2048 m / 513 x 513 samples");
+        ImGui::TextUnformatted("Twin Palms: 6144 m / 1025 x 1025 samples");
+        ImGui::Text("Streamed terrain %zu / %zu | scenery %zu / %zu", m_islandRenderer->residentChunks(),IslandRenderer::ResidentLimit,m_sceneRenderer->residentChunks(),SceneRenderer::ResidentLimit);
+        ImGui::Text("Detail mesh GPU memory: %.1f MiB (terrain + buildings)",double(m_islandRenderer->residentBytes()+m_sceneRenderer->residentBytes())/(1024*1024));
         ImGui::TextWrapped("The game loads resources/maps/island.bin and island.scene. Rebuild deliberately with tools/build_island.py; no terrain is generated at startup.");
         ImGui::SliderFloat("Wave strength", &m_waveStrength, 0.0f, 2.0f);
 
@@ -279,6 +280,8 @@ bool Game::init()
 
     m_debugUI.addPanel("Vehicle", [this]() {
         ImGui::TextWrapped("Inspect and tune any vehicle, including parked cars and AI traffic.");
+        if(!m_vehicles.empty()) {
+        m_debugVehicleIndex=std::clamp(m_debugVehicleIndex,0,int(m_vehicles.size())-1);
         ImGui::SliderInt("Vehicle number", &m_debugVehicleIndex, 0, static_cast<int>(m_vehicles.size()) - 1);
         if (Vehicle* driving = drivenVehicle())
             if (ImGui::Button("Select driven vehicle"))
@@ -294,6 +297,7 @@ bool Game::init()
         ImGui::SliderFloat("Max reverse speed", &vehicle->maxReverseSpeed, 2.0f, 20.0f);
         ImGui::SliderFloat("Turn rate (deg/s)", &vehicle->turnRateDeg, 20.0f, 180.0f);
 
+        } else ImGui::TextUnformatted("No nearby vehicles loaded yet. Start playing to activate traffic.");
         ImGui::Separator();
         if (ImGui::Button("Spawn Porsche 930 ahead"))
         {
@@ -330,13 +334,17 @@ int Game::run(bool smokeTest, bool benchmark)
 
     if (benchmark)
     {
+        m_smokeTest=false; // hidden benchmark still exercises actor streaming
         glfwSwapInterval(0);
         int width,height;glfwGetFramebufferSize(m_window,&width,&height);
         std::cout<<"BENCH renderer="<<glGetString(GL_RENDERER)<<" resolution="<<width<<"x"<<height<<'\n';
         using Clock=std::chrono::steady_clock;
         auto ms=[](auto a,auto b){return std::chrono::duration<double,std::milli>(b-a).count();};
         m_debugUI.setVisible(false);
-        m_camera.follow(m_player->position+glm::vec3(0,1.5f,0));
+        for(const auto& site:std::vector<std::pair<const char*,glm::vec3>>{{"downtown",{0,8,0}},{"ocean-drive",{1490,10,600}},{"sierra",{-1670,278,-1240}}}) {
+        m_player->position=site.second;m_player->resetMotion();
+        m_camera=Camera();m_camera.follow(m_player->position+glm::vec3(0,1.5f,0));
+        for(int warm=0;warm<100;++warm) { update(1.0f/60); render(); }
         for(bool active:{false,true}) {
             std::vector<double> frames;double simulation=0,rendering=0,gpuWait=0,poses=0,culled=0,uploads=0;
             for(int frame=0;frame<140;++frame) {
@@ -346,9 +354,12 @@ int Game::run(bool smokeTest, bool benchmark)
                 if(frame>=20){frames.push_back(ms(a,d));simulation+=ms(a,b);rendering+=ms(b,c);gpuWait+=ms(c,d);poses+=m_renderer->stats.poseUpdates;culled+=m_renderer->stats.culledModels;uploads+=m_renderer->stats.paletteBytes;}
             }
             std::sort(frames.begin(),frames.end());
-            std::cout<<std::fixed<<std::setprecision(2)<<"BENCH "<<(active?"active":"paused")
+            std::cout<<std::fixed<<std::setprecision(2)<<"BENCH "<<site.first<<" "<<(active?"active":"paused")
                 <<" median_ms="<<frames[60]<<" p95_ms="<<frames[114]
-                <<" update_ms="<<simulation/120<<" render_ms="<<rendering/120<<" gpu_wait_ms="<<gpuWait/120<<" poses="<<poses/120<<" culled_model_passes="<<culled/120<<" upload_kb="<<uploads/120/1024<<'\n';
+                <<" update_ms="<<simulation/120<<" render_ms="<<rendering/120<<" gpu_wait_ms="<<gpuWait/120<<" poses="<<poses/120<<" culled_model_passes="<<culled/120<<" upload_kb="<<uploads/120/1024
+                <<" actors="<<m_actors.size()<<" terrain_tiles="<<m_islandRenderer->residentChunks()<<" scene_tiles="<<m_sceneRenderer->residentChunks()
+                <<" detail_mesh_mib="<<double(m_islandRenderer->residentBytes()+m_sceneRenderer->residentBytes())/(1024*1024)<<'\n';
+        }
         }
         return 0;
     }
@@ -382,12 +393,12 @@ int Game::run(bool smokeTest, bool benchmark)
             throw std::runtime_error("New courier run did not reset progress");
         stopCourierRun();
         auto* recoveryCar=drivenVehicle();
-        recoveryCar->recover({0,-3,700});
+        recoveryCar->recover({-450,-3,0});
         simulate();
         if (recoveryCar->position().y<0 || m_waterRecoveryNotice<=0)
             throw std::runtime_error("Submerged vehicle recovery failed");
         m_controlled = m_player;
-        m_player->position={0,-3,700};
+        m_player->position={-450,-3,0};
         m_player->resetMotion();
         simulate();
         if (!m_player->isSwimming() || std::abs(m_player->position.y+.9f)>.01f)
@@ -474,15 +485,35 @@ int Game::run(bool smokeTest, bool benchmark)
         m_camera.follow({-430,12,120});
         m_capturePath="smoke-bridge.ppm";
         render();
-        m_player->position={0,m_world.groundHeightAt(0,560),560};
+        m_player->position={1590,m_world.groundHeightAt(1590,250),250};
         m_camera=Camera(); m_camera.maxDistance=150;
         m_camera.processScroll(-25); m_camera.processMouse(0,100);
-        m_camera.follow({0,2,560});
+        m_camera.follow({1590,2,250});
         m_capturePath="smoke-shore.ppm";
         render();
         m_worldTime+=2;
         m_capturePath="smoke-shore-next.ppm";
         render();
+        m_capturePath=nullptr;
+        for(const auto& place:m_world.landmarks()) {
+            m_player->position=place.position;
+            m_player->position.y=m_world.groundHeightAt(place.position.x,place.position.z);
+            m_camera=Camera();m_camera.maxDistance=150;m_camera.processScroll(-70);m_camera.processMouse(150,100);
+            m_camera.follow(m_player->position+glm::vec3(0,2,0));
+            for(int frame=0;frame<55;++frame) {
+                if(frame==28) {m_camera.processMouse(180.0f/m_camera.sensitivity,0);m_camera.follow(m_player->position+glm::vec3(0,2,0));}
+                streamActors(); render();
+                if(m_islandRenderer->residentChunks()>IslandRenderer::ResidentLimit ||
+                   m_sceneRenderer->residentChunks()>SceneRenderer::ResidentLimit || m_actors.size()>65)
+                    throw std::runtime_error("Streaming residency ceiling exceeded during world tour");
+            }
+            std::string capture="smoke-"+place.kind+".ppm";
+            m_capturePath=capture.c_str();render();m_capturePath=nullptr;
+        }
+        m_player->position={2800,0,-2800};m_camera.follow(m_player->position);
+        for(int frame=0;frame<5;++frame) {streamActors();render();}
+        if(m_sceneRenderer->residentChunks()!=0 || m_actors.size()!=1)
+            throw std::runtime_error("Distant scenery or ambient actors were not evicted");
         int previewWidth,previewHeight;glfwGetFramebufferSize(m_window,&previewWidth,&previewHeight);
         captureModelPreviews(*m_renderer,*m_shadowMap,previewWidth,previewHeight);
         if (glGetError() != GL_NO_ERROR) throw std::runtime_error("OpenGL smoke test failed");
@@ -623,6 +654,61 @@ Vehicle* Game::drivenVehicle() const
     return static_cast<Vehicle*>(m_controlled);
 }
 
+void Game::streamActors()
+{
+    // Activation follows the player, independent of camera visibility: a car
+    // approaching from behind must still be simulated. Visuals are culled later.
+    const auto focus=m_controlled->collisionBox().center;
+    auto distance=[&](const glm::vec3& p){return glm::length(glm::vec2(p.x-focus.x,p.z-focus.z));};
+    auto retire=[&](std::vector<Actor*>& slots) {
+        for(auto& actor:slots) {
+            if(!actor || actor==m_controlled || distance(actor->collisionBox().center)<750) continue;
+            m_renderer->forgetInstance(actor);
+            m_vehicles.erase(std::remove(m_vehicles.begin(),m_vehicles.end(),dynamic_cast<Vehicle*>(actor)),m_vehicles.end());
+            m_actors.erase(std::remove_if(m_actors.begin(),m_actors.end(),[&](const auto& owned){return owned.get()==actor;}),m_actors.end());
+            actor=nullptr;
+        }
+    };
+    retire(m_streamedVehicles); retire(m_streamedPedestrians);
+    // One actor per rendered frame bounds model decode/activation work even
+    // when the simulation needs multiple catch-up ticks after a stall.
+    struct Request {float distance;size_t index;bool car;};
+    std::vector<Request> requests;
+    size_t cars=std::count_if(m_streamedVehicles.begin(),m_streamedVehicles.end(),[](auto* a){return a;});
+    size_t people=std::count_if(m_streamedPedestrians.begin(),m_streamedPedestrians.end(),[](auto* a){return a;});
+    if(cars<24) for(size_t i=0;i<m_streamedVehicles.size();++i)
+        if(!m_streamedVehicles[i] && distance(m_world.vehicleSpawns()[i].route.front())<500)
+            requests.push_back({distance(m_world.vehicleSpawns()[i].route.front()),i,true});
+    if(people<40) for(size_t i=0;i<m_streamedPedestrians.size();++i)
+        if(!m_streamedPedestrians[i] && distance(m_world.pedestrianSpawns()[i].route.front())<350)
+            requests.push_back({distance(m_world.pedestrianSpawns()[i].route.front()),i,false});
+    std::sort(requests.begin(),requests.end(),[](const Request& a,const Request& b){return a.distance<b.distance;});
+    for(const auto& request:requests) {
+        std::unique_ptr<Actor> actor;
+        const size_t i=request.index;
+        std::string path;
+        if(request.car) path="resources/models/cars/"+std::string(VehicleModels[m_world.vehicleSpawns()[i].type])+".glb";
+        else path="resources/models/characters/"+std::string(i%8<4?"men-":"women-")+std::to_string(i%4)+".glb";
+        auto asset=ModelAsset::load(path);
+        if(std::find(m_actorAssets.begin(),m_actorAssets.end(),asset)==m_actorAssets.end()) m_actorAssets.push_back(asset);
+        if(request.car) {
+            const auto& spawn=m_world.vehicleSpawns()[i];
+            auto car=std::make_unique<Vehicle>(static_cast<VehicleType>(spawn.type),spawn.route.front(),spawn.yaw);
+            if(spawn.speed>0) {car->maxSpeed=spawn.speed;car->setPatrol(WaypointPath(spawn.route));}
+            actor=std::move(car);
+        } else {
+            const auto& spawn=m_world.pedestrianSpawns()[i];
+            auto person=std::make_unique<Pedestrian>(spawn.route.front(),WaypointPath(spawn.route),spawn.color,int(i));
+            person->walkSpeed=spawn.speed;actor=std::move(person);
+        }
+        if(collisionPredicateFor(actor.get())(actor->collisionBox())) continue;
+        if(request.car) {m_streamedVehicles[i]=actor.get();m_vehicles.push_back(static_cast<Vehicle*>(actor.get()));}
+        else m_streamedPedestrians[i]=actor.get();
+        m_actors.push_back(std::move(actor));
+        break;
+    }
+}
+
 void Game::update(float dt)
 {
     // suppressed while the debug UI is open, so tweaking a slider doesn't
@@ -679,6 +765,7 @@ void Game::update(float dt)
 
 void Game::render()
 {
+    if(!m_smokeTest && !m_debugUI.visible()) streamActors();
     m_debugUI.beginFrame(); // HUD frame plus optional debug panels
 
     int width = 0, height = 0;
@@ -687,6 +774,8 @@ void Game::render()
 
     m_renderer->stats={};
     m_renderer->setCamera(m_camera,aspect);
+    m_islandRenderer->updateStreaming(*m_renderer,m_camera.position(),m_controlled->collisionBox().center);
+    m_sceneRenderer->updateStreaming(*m_renderer,m_camera.position(),m_controlled->collisionBox().center);
     glm::mat4 lightSpaceMatrix = ShadowMap::lightSpaceMatrix(m_lighting.direction, m_controlled->collisionBox().center, 95.0f);
 
     // shadow pass: depth only, from the sun's point of view. Runs every
@@ -823,6 +912,13 @@ void Game::renderHUD()
     Vehicle* driving = drivenVehicle();
     glm::vec3 pos = m_controlled->collisionBox().center;
     glm::vec3 target = m_deliveryStops[m_deliveryIndex];
+    const Landmark* nearest=nullptr;
+    float nearestDistance=1e9f;
+    for(const auto& place:m_world.landmarks()) {
+        float d=glm::length(place.position-pos);
+        if(d<nearestDistance) {nearestDistance=d;nearest=&place;}
+    }
+    if(nearest) ImGui::Text("Twin Palms / %s",nearest->name.c_str());
     ImGui::Separator();
     if (driving)
     {
@@ -858,26 +954,21 @@ void Game::renderHUD()
     float mapScale=220.0f/m_world.terrain().extent();
     auto point = [origin,mapScale](float x, float z) { return ImVec2(origin.x + 110 + std::clamp(x * mapScale,-108.0f,108.0f), origin.y + 110 + std::clamp(z * mapScale,-108.0f,108.0f)); };
     draw->AddImage((ImTextureID)(intptr_t)m_mapTexture->id(), origin, {origin.x+220,origin.y+220}, {0,1}, {1,0});
-    for (const StaticBox& box : m_world.boxes()) {
-        if (!box.facade) continue;
-        draw->AddRectFilled(point(box.center.x-box.size.x/2,box.center.z-box.size.z/2),
-                            point(box.center.x+box.size.x/2,box.center.z+box.size.z/2),IM_COL32(165,166,147,255));
+    for(const auto& place:m_world.landmarks()) {
+        if(place.kind!="hospital" && place.kind!="police" && place.kind!="park") continue;
+        ImVec2 p=point(place.position.x,place.position.z);
+        draw->AddText(p,place.kind=="hospital"?IM_COL32(255,120,120,255):IM_COL32(180,230,230,255),
+                      place.kind=="hospital"?"H":place.kind=="police"?"P":"+");
     }
-    for (const Road& road : m_world.roads())
-        for (size_t i=1;i<road.route.size();++i) {
-            auto a=road.route[i-1],b=road.route[i],mid=(a+b)*.5f;
-            if (m_world.terrain().heightAt(mid.x,mid.z)<0)
-                draw->AddLine(point(a.x,a.z),point(b.x,b.z),IM_COL32(185,185,169,255),2);
-        }
     for (const Vehicle* vehicle : m_vehicles)
         draw->AddCircleFilled(point(vehicle->position().x, vehicle->position().z), 1.8f, IM_COL32(239, 193, 85, 255));
     if (m_deliveryActive) draw->AddCircle(point(target.x, target.z), 5, IM_COL32(70, 245, 190, 255), 16, 2);
     float yaw = driving ? driving->yaw() : m_player->yaw;
     glm::vec2 f(std::sin(glm::radians(yaw)), std::cos(glm::radians(yaw)));
     glm::vec2 r(f.y, -f.x), c(pos.x, pos.z);
-    glm::vec2 tip = c + f * 45.0f, left = c - f * 25.0f - r * 25.0f, right = c - f * 25.0f + r * 25.0f;
+    glm::vec2 tip = c + f * (6/mapScale), left = c - f * (3/mapScale) - r * (3/mapScale), right = c - f * (3/mapScale) + r * (3/mapScale);
     draw->AddTriangleFilled(point(tip.x, tip.y), point(left.x, left.y), point(right.x, right.y), IM_COL32(255, 255, 255, 255));
-    draw->AddText({origin.x + 8, origin.y + 6}, IM_COL32(210, 225, 230, 255), "N ^   ISLAND");
+    draw->AddText({origin.x + 8, origin.y + 6}, IM_COL32(210, 225, 230, 255), "N ^   TWIN PALMS");
     draw->AddText({origin.x + 6, origin.y + 224}, IM_COL32(220, 232, 236, 255), "F1: quick travel / island tools");
 }
 

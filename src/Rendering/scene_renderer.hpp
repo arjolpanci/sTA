@@ -1,6 +1,8 @@
 #pragma once
 #include <memory>
 #include <vector>
+#include <map>
+#include "Game/world.hpp"
 #include "material.hpp"
 #include "mesh.hpp"
 class World;
@@ -8,18 +10,7 @@ class Renderer;
 class Texture;
 class ModelAsset;
 
-// Saved scenery is drawn two ways, by what it is rather than by where it is.
-//
-// Buildings are unique boxes, so they are merged once into spatial batches -
-// thousands of individual draws would cost more than the memory does.
-//
-// Trees and street props are a couple of dozen models repeated a few thousand
-// times, so they are instanced: one copy of each model's geometry, and a
-// per-frame buffer of the matrices that survived culling. Merging those the
-// way buildings are merged cost 960 MB of duplicated vertices and ten seconds
-// of startup, which is what this class used to do.
-//
-// The original World boxes remain the physics/debug source either way.
+// Metadata is resident; nearby building geometry is built under a frame budget.
 class SceneRenderer
 {
 public:
@@ -28,17 +19,24 @@ public:
     SceneRenderer(const SceneRenderer&) = delete;
     SceneRenderer& operator=(const SceneRenderer&) = delete;
 
+    void updateStreaming(Renderer& renderer, const glm::vec3& camera, const glm::vec3& focus);
+    size_t residentChunks() const;
+    size_t residentBytes() const;
+    static constexpr size_t ResidentLimit = 96;
     void draw(Renderer& renderer, const glm::vec3& camera) const;
     void drawShadow(Renderer& renderer, const glm::vec3& focus) const;
 
 private:
-    struct Batch { glm::vec3 center; float radius, distance; Material material; std::unique_ptr<Mesh> mesh; };
+    struct Batch { glm::vec3 center; float radius, distance; Material material; std::unique_ptr<Mesh> mesh;
+        std::vector<const StaticBox*> boxes; std::vector<const Marking*> markings; };
+    void build(Batch& batch);
+    const World& m_world;
 
     struct Instance { glm::mat4 matrix; glm::vec3 center; float radius; };
     struct Model {
         struct Surface { std::unique_ptr<Mesh> mesh; Material material; };
         std::vector<Surface> surfaces;
-        std::vector<Instance> instances;
+        std::map<std::pair<int,int>,std::vector<Instance>> cells;
         float distance = 500;      // beyond this the model stops being drawn
         unsigned int buffer = 0;   // instance matrices, refilled per pass
     };

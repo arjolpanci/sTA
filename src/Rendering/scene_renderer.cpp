@@ -9,6 +9,7 @@
 #include <map>
 #include <tuple>
 #include <limits>
+#include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
 
 std::vector<SceneRenderer::Model::Surface> SceneRenderer::loadSurfaces(const ModelAsset& asset)
@@ -37,19 +38,14 @@ std::vector<SceneRenderer::Model::Surface> SceneRenderer::loadSurfaces(const Mod
     return surfaces;
 }
 
-SceneRenderer::SceneRenderer(const World& world)
+void SceneRenderer::build(Batch& batch)
 {
-    struct Data {
-        std::vector<float> vertices;
-        glm::vec3 min{std::numeric_limits<float>::max()}, max{-std::numeric_limits<float>::max()};
-        bool facade=false;
-    };
-    std::map<std::tuple<int,int,bool>,Data> groups;
+    struct Data {std::vector<float> vertices;glm::vec3 min{1e9f},max{-1e9f};} data;
     const auto cube=Mesh::cubeVertices();
     auto append=[&](const StaticBox& box) {
         if(box.modelProxy) return;
-        auto& data=groups[{int(std::floor(box.center.x/128)),int(std::floor(box.center.z/128)),box.facade}];
-        data.facade=box.facade;
+
+
         auto model=Mesh::boxMatrix(box.center,box.size,box.yaw);
         auto rotation=glm::mat3(glm::rotate(glm::mat4(1),glm::radians(box.yaw),glm::vec3(0,1,0)));
         for(size_t i=0;i<cube.size();i+=8) {
@@ -59,16 +55,16 @@ SceneRenderer::SceneRenderer(const World& world)
             data.vertices.insert(data.vertices.end(),{p.x,p.y,p.z,n.x,n.y,n.z,cube[i+6],cube[i+7],box.color.r,box.color.g,box.color.b});
         }
     };
-    for(const auto& b:world.boxes()) append(b);
-    for(const auto& b:world.decorations()) append(b);
+    for(const auto* b:batch.boxes) append(*b);
 
     // Road paint is laid over the terrain rather than resting on it: each
     // rectangle is cut into cells no wider than a metre and every corner takes
     // the terrain's own height, so a crossing at a graded junction follows the
     // camber instead of floating over it.
-    const Terrain& terrain=world.terrain();
-    for(const auto& marking:world.markings()) {
-        auto& data=groups[{int(std::floor(marking.center.x/128)),int(std::floor(marking.center.y/128)),false}];
+    const Terrain& terrain=m_world.terrain();
+    for(const auto* saved:batch.markings) {
+        const auto& marking=*saved;
+
         const int nx=std::max(1,int(std::ceil(marking.size.x/1.0f))), nz=std::max(1,int(std::ceil(marking.size.y/1.0f)));
         auto corner=[&](int i,int j) {
             glm::vec3 p(marking.center.x-marking.size.x*.5f+marking.size.x*float(i)/float(nx),0,
@@ -89,13 +85,39 @@ SceneRenderer::SceneRenderer(const World& world)
             }
         }
     }
-    for(auto& entry:groups) {
-        auto& data=entry.second;
-        Material material; material.facade=data.facade;
-        m_batches.push_back({(data.min+data.max)*.5f,glm::length(data.max-data.min)*.5f,
-            data.facade?1600.0f:850.0f,material,std::make_unique<Mesh>(data.vertices,true)});
-    }
+    batch.mesh=std::make_unique<Mesh>(data.vertices,true);
+}
 
+SceneRenderer::SceneRenderer(const World& world) : m_world(world)
+{
+    std::map<std::tuple<int,int,bool>,size_t> groups;
+    auto group=[&](float x,float z,bool facade)->Batch& {
+        const auto key=std::make_tuple(int(std::floor(x/128)),int(std::floor(z/128)),facade);
+        auto it=groups.find(key);
+        if(it==groups.end()) {
+            size_t index=m_batches.size(); groups[key]=index;
+            Material material; material.facade=facade;
+            m_batches.push_back({glm::vec3(0),0,facade?1600.0f:850.0f,material,nullptr,{},{}});
+            return m_batches.back();
+        }
+        return m_batches[it->second];
+    };
+    for(const auto& box:world.boxes()) if(!box.modelProxy) group(box.center.x,box.center.z,box.facade).boxes.push_back(&box);
+    for(const auto& box:world.decorations()) group(box.center.x,box.center.z,box.facade).boxes.push_back(&box);
+    for(const auto& marking:world.markings()) group(marking.center.x,marking.center.y,false).markings.push_back(&marking);
+    for(auto& batch:m_batches) {
+        glm::vec3 low(1e9f),high(-1e9f);
+        for(const auto* box:batch.boxes) {
+            float r=glm::length(box->size)*.5f;
+            low=glm::min(low,box->center-glm::vec3(r)); high=glm::max(high,box->center+glm::vec3(r));
+        }
+        for(const auto* marking:batch.markings) {
+            glm::vec3 center(marking->center.x,world.terrain().heightAt(marking->center.x,marking->center.y),marking->center.y);
+            float r=glm::length(marking->size)*.5f+2;
+            low=glm::min(low,center-glm::vec3(r)); high=glm::max(high,center+glm::vec3(r));
+        }
+        batch.center=(low+high)*.5f; batch.radius=glm::length(high-low)*.5f;
+    }
     // One entry per model: its geometry once, then every placement of it.
     // Trees first, then the kerbside props, then the manhole cover.
     m_models.resize(TreeModels.size()+PropModels.size()+1);
@@ -104,7 +126,7 @@ SceneRenderer::SceneRenderer(const World& world)
                    *glm::scale(glm::mat4(1),glm::vec3(height));
         // Models are normalized to one unit tall, so a placed instance's radius
         // is the model's own proportions scaled to the height it was planted at.
-        m_models[model].instances.push_back({matrix,feet+glm::vec3(0,height*.5f,0),glm::length(size)*.5f*height});
+        m_models[model].cells[{int(std::floor(feet.x/128)),int(std::floor(feet.z/128))}].push_back({matrix,feet+glm::vec3(0,height*.5f,0),glm::length(size)*.5f*height});
     };
     for(size_t i=0;i<TreeModels.size();++i) {
         ModelAsset asset("resources/models/trees/"+std::string(TreeModels[i])+".glb",false);
@@ -127,7 +149,43 @@ SceneRenderer::SceneRenderer(const World& world)
                 place(model,prop.feet,prop.yaw,prop.height,size);
     }
     for(auto& model:m_models)
-        if(!model.instances.empty()) glGenBuffers(1,&model.buffer);
+        if(!model.cells.empty()) glGenBuffers(1,&model.buffer);
+}
+
+size_t SceneRenderer::residentBytes() const
+{
+    size_t bytes=0;for(const auto& b:m_batches) if(b.mesh) bytes+=size_t(b.mesh->vertexCount())*11*sizeof(float);
+    return bytes;
+}
+size_t SceneRenderer::residentChunks() const
+{
+    return size_t(std::count_if(m_batches.begin(),m_batches.end(),[](const Batch& b){return bool(b.mesh);}));
+}
+void SceneRenderer::updateStreaming(Renderer& renderer,const glm::vec3& camera,const glm::vec3& focus)
+{
+    std::vector<std::pair<float,size_t>> wanted;
+    for(size_t i=0;i<m_batches.size();++i) {
+        auto& batch=m_batches[i];
+        float d=glm::length(glm::vec2(batch.center.x-camera.x,batch.center.z-camera.z));
+        float near=glm::length(glm::vec2(batch.center.x-focus.x,batch.center.z-focus.z));
+        if(d>batch.distance+batch.radius+256 && near>320+batch.radius) batch.mesh.reset();
+        if(near<280+batch.radius || (d<batch.distance+batch.radius && renderer.visibleSphere(batch.center,batch.radius)))
+            wanted.push_back({std::min(d,near+150),i});
+    }
+    std::sort(wanted.begin(),wanted.end());
+    if(wanted.size()>ResidentLimit) wanted.resize(ResidentLimit);
+    size_t count=residentChunks();
+    for(size_t i=0;i<m_batches.size() && count>=ResidentLimit;++i)
+        if(m_batches[i].mesh && std::none_of(wanted.begin(),wanted.end(),[i](const auto& r){return r.second==i;})) {
+            m_batches[i].mesh.reset(); --count;
+        }
+    int uploads=0;
+    for(const auto& request:wanted) {
+        auto& batch=m_batches[request.second];
+        if(batch.mesh) continue;
+        if(count>=ResidentLimit || uploads>=2) break;
+        build(batch); ++count; ++uploads;
+    }
 }
 
 SceneRenderer::~SceneRenderer()
@@ -140,10 +198,14 @@ int SceneRenderer::gather(Model& model,Renderer& renderer,const glm::vec3& eye,b
 {
     if(!model.buffer) return 0;
     m_visible.clear();
-    for(const auto& instance:model.instances)
+    for(int z=int(std::floor((eye.z-range-32)/128));z<=int(std::floor((eye.z+range+32)/128));++z)
+    for(int x=int(std::floor((eye.x-range-32)/128));x<=int(std::floor((eye.x+range+32)/128));++x) {
+    auto cell=model.cells.find({x,z}); if(cell==model.cells.end()) continue;
+    for(const auto& instance:cell->second)
         if(glm::length(glm::vec2(instance.center.x-eye.x,instance.center.z-eye.z))<range+instance.radius &&
            renderer.visibleSphere(instance.center,instance.radius,shadow))
             m_visible.push_back(instance.matrix);
+    }
     if(m_visible.empty()) return 0;
     // Orphan-and-refill: the driver keeps the old storage alive for any draw
     // still reading it, so this never stalls on the pass before.
@@ -155,7 +217,7 @@ int SceneRenderer::gather(Model& model,Renderer& renderer,const glm::vec3& eye,b
 void SceneRenderer::draw(Renderer& renderer,const glm::vec3& camera) const
 {
     for(const auto& batch:m_batches)
-        if(renderer.visibleSphere(batch.center,batch.radius) && glm::length(glm::vec2(batch.center.x-camera.x,batch.center.z-camera.z))<batch.distance+batch.radius)
+        if(batch.mesh && renderer.visibleSphere(batch.center,batch.radius) && glm::length(glm::vec2(batch.center.x-camera.x,batch.center.z-camera.z))<batch.distance+batch.radius)
             renderer.draw(*batch.mesh,glm::mat4(1),batch.material);
     for(auto& model:m_models) {
         const int count=gather(model,renderer,camera,false,model.distance);
@@ -168,7 +230,7 @@ void SceneRenderer::draw(Renderer& renderer,const glm::vec3& camera) const
 void SceneRenderer::drawShadow(Renderer& renderer,const glm::vec3& focus) const
 {
     for(const auto& batch:m_batches)
-        if(renderer.visibleSphere(batch.center,batch.radius,true) && glm::length(glm::vec2(batch.center.x-focus.x,batch.center.z-focus.z))<210+batch.radius)
+        if(batch.mesh && renderer.visibleSphere(batch.center,batch.radius,true) && glm::length(glm::vec2(batch.center.x-focus.x,batch.center.z-focus.z))<210+batch.radius)
             renderer.drawShadow(*batch.mesh,glm::mat4(1),batch.material);
     for(auto& model:m_models) {
         const int count=gather(model,renderer,focus,true,210);

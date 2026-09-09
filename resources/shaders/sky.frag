@@ -2,6 +2,7 @@
 in vec3 vRay;
 out vec4 FragColor;
 
+uniform vec3 fogColor;
 uniform vec3 sunDirection;   // normalized, points toward the sun
 uniform float sunElevation;  // sine of the sun's angle above the horizon
 uniform float hours;
@@ -141,9 +142,13 @@ void main()
     // Ground half: no terrain reaches the horizon everywhere, so the lower
     // hemisphere fades to the same haze the distance fog uses.
     vec3 haze = mix(color, vec3(dot(color, vec3(0.33))) * vec3(0.85, 0.88, 0.92), 0.55);
-    color = mix(color, haze, smoothstep(0.04, -0.12, up));
+    color = mix(color, haze, 1.0-smoothstep(-0.12, 0.04, up));
 
     // Tonemap, then gamma: the renderer writes straight to an sRGB display.
     color = color / (color + vec3(1.35));
-    FragColor = vec4(pow(max(color, 0.0), vec3(1.0 / 2.2)), 1.0);
+    color=pow(max(color,0.0),vec3(1.0/2.2));
+    // Match the distant ocean/terrain haze below the horizon, including from
+    // mountain viewpoints where the far clip plane exposes the lower sky.
+    color=mix(fogColor,color,smoothstep(-.015,.10,up));
+    FragColor=vec4(color,1.0);
 }

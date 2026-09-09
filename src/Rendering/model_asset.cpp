@@ -127,7 +127,7 @@ struct ModelAsset::Impl {
     }
 };
 
-ModelAsset::ModelAsset(const std::string& path,bool centerFootprint):m(std::make_unique<Impl>()) {
+ModelAsset::ModelAsset(const std::string& path,bool centerFootprint):m(std::make_unique<Impl>()),m_cacheKey(path+(centerFootprint?"|center":"|origin")) {
     cgltf_options options{}; cgltf_data* raw=nullptr;
     if(cgltf_parse_file(&options,path.c_str(),&raw)!=cgltf_result_success) throw std::runtime_error("Cannot parse model: "+path);
     m->data.reset(raw);

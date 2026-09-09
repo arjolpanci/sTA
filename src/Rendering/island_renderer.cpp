@@ -6,20 +6,29 @@
 #include "sky.hpp"
 #include "frustum.hpp"
 #include <limits>
+#include <algorithm>
+#include <chrono>
 #include <glm/gtc/matrix_transform.hpp>
 
 IslandRenderer::IslandRenderer(const Terrain& terrain)
-    : m_terrainShader("resources/shaders/basic.vert", "resources/shaders/terrain.frag"),
+    : m_terrain(terrain), m_terrainShader("resources/shaders/basic.vert", "resources/shaders/terrain.frag"),
       m_waterShader("resources/shaders/water.vert", "resources/shaders/water.frag"),
       m_extent(terrain.extent()), m_resolution(float(terrain.resolution())), m_seaLevel(terrain.seaLevel())
 {
-    for (int z=0; z<terrain.resolution()-1; z+=64)
-        for (int x=0; x<terrain.resolution()-1; x+=64)
-        {
-            auto vertices=terrain.vertices(x,z,64);
-            glm::vec3 min(std::numeric_limits<float>::max()),max(-std::numeric_limits<float>::max());
-            for(size_t i=0;i<vertices.size();i+=8){glm::vec3 p(vertices[i],vertices[i+1],vertices[i+2]);min=glm::min(min,p);max=glm::max(max,p);}
-            m_chunks.push_back({(min+max)*.5f,glm::length(max-min)*.5f,std::make_unique<Mesh>(vertices)});
+    // Only a lightweight horizon exists initially. Full-resolution detail is
+    // uploaded under a per-frame budget and has a fixed resident ceiling.
+    for (int z=0; z<terrain.resolution()-1; z+=32)
+        for (int x=0; x<terrain.resolution()-1; x+=32) {
+            float low=1e9f,high=-1e9f;
+            for(int j=z;j<=z+32;++j) for(int i=x;i<=x+32;++i) {
+                const float h=terrain.heights()[j*terrain.resolution()+i];
+                low=std::min(low,h); high=std::max(high,h);
+            }
+            low-=40; // skirts participate in conservative culling bounds
+            glm::vec3 center((x+16)*terrain.spacing()-terrain.extent()/2,(low+high)/2,
+                             (z+16)*terrain.spacing()-terrain.extent()/2);
+            float radius=glm::length(glm::vec3(16*terrain.spacing(),(high-low)/2,16*terrain.spacing()));
+            m_chunks.push_back({center,radius,x,z,8,std::make_unique<Mesh>(terrain.vertices(x,z,32,8,true)),nullptr});
         }
     std::vector<float> data;
     data.reserve(terrain.heights().size()*2);
@@ -52,6 +61,62 @@ IslandRenderer::IslandRenderer(const Terrain& terrain)
     m_water=std::make_unique<Mesh>(water);
 }
 IslandRenderer::~IslandRenderer() {glDeleteTextures(1,&m_terrainTexture);glDeleteTextures(1,&m_roadTexture);}
+size_t IslandRenderer::residentBytes() const
+{
+    size_t bytes=0;for(const auto& c:m_chunks) if(c.mesh) bytes+=size_t(c.mesh->vertexCount())*8*sizeof(float);
+    return bytes;
+}
+size_t IslandRenderer::residentChunks() const
+{
+    return size_t(std::count_if(m_chunks.begin(),m_chunks.end(),[](const Chunk& c){return bool(c.mesh);}));
+}
+void IslandRenderer::updateStreaming(Renderer& renderer,const glm::vec3& eye,const glm::vec3& focus)
+{
+    struct Request {size_t index;float priority;};
+    std::vector<Request> wanted;
+    for(size_t i=0;i<m_chunks.size();++i) {
+        auto& c=m_chunks[i];
+        const float distance=glm::length(glm::vec2(c.center.x-eye.x,c.center.z-eye.z));
+        const float playerDistance=glm::length(glm::vec2(c.center.x-focus.x,c.center.z-focus.z));
+        if(distance>1150+c.radius && playerDistance>320+c.radius) c.mesh.reset();
+        if(playerDistance<280+c.radius || (distance<950+c.radius && renderer.visibleSphere(c.center,c.radius)))
+            wanted.push_back({i,std::min(distance,playerDistance+150)});
+    }
+    std::sort(wanted.begin(),wanted.end(),[](const Request& a,const Request& b){return a.priority<b.priority;});
+    if(wanted.size()>ResidentLimit) wanted.resize(ResidentLimit);
+    // Evict cached tiles before admitting replacements; camera turns cannot
+    // temporarily double the memory footprint.
+    size_t count=residentChunks();
+    for(size_t i=0;i<m_chunks.size() && count>=ResidentLimit;++i)
+        if(m_chunks[i].mesh && std::none_of(wanted.begin(),wanted.end(),[i](const Request& r){return r.index==i;})) {
+            m_chunks[i].mesh.reset(); --count;
+        }
+    if(m_pending.valid()) {
+        if(m_pending.wait_for(std::chrono::seconds(0))!=std::future_status::ready) return;
+        for(auto& result:m_pending.get()) {
+            size_t index=std::get<0>(result);
+            auto& c=m_chunks[index];
+            if(std::none_of(wanted.begin(),wanted.end(),[index](const Request& r){return r.index==index;})) continue;
+            if(!c.mesh && count>=ResidentLimit) continue;
+            if(!c.mesh) ++count;
+            c.mesh=std::make_unique<Mesh>(std::get<2>(result)); c.stride=std::get<1>(result);
+        }
+    }
+    std::vector<std::tuple<size_t,int,int,int>> jobs;
+    for(const auto& request:wanted) {
+        const auto& c=m_chunks[request.index];
+        const int stride=request.priority<500?1:4;
+        if(c.mesh && c.stride==stride) continue;
+        if(jobs.size()>=2 || (!c.mesh && count+jobs.size()>=ResidentLimit)) break;
+        jobs.emplace_back(request.index,c.x,c.z,stride);
+    }
+    if(!jobs.empty()) m_pending=std::async(std::launch::async,[this,jobs=std::move(jobs)]() {
+        std::vector<BuiltTile> results;
+        for(const auto& job:jobs)
+            results.emplace_back(std::get<0>(job),std::get<3>(job),m_terrain.vertices(std::get<1>(job),std::get<2>(job),32,std::get<3>(job),true));
+        return results;
+    });
+}
 void IslandRenderer::common(Shader& shader,const Camera& camera,float aspect)
 {
     shader.use();
@@ -69,7 +134,7 @@ void IslandRenderer::drawShadow(Renderer& renderer,const glm::vec3& focus)
 {
     for(const auto& chunk:m_chunks)
         if (renderer.visibleSphere(chunk.center,chunk.radius,true) && glm::length(glm::vec2(chunk.center.x-focus.x,chunk.center.z-focus.z))<360)
-            renderer.drawShadow(*chunk.mesh,glm::mat4(1));
+            renderer.drawShadow(*(chunk.mesh?chunk.mesh:chunk.coarse),glm::mat4(1));
 }
 void IslandRenderer::drawTerrain(const Camera& camera,float aspect,const glm::mat4& lightSpace,
                                   const Lighting& lighting,const ShadowMap& shadows,bool enabled)
@@ -87,8 +152,8 @@ void IslandRenderer::drawTerrain(const Camera& camera,float aspect,const glm::ma
     shadows.bindForSampling(1);
     Frustum frustum(glm::perspective(glm::radians(60.0f),aspect,.1f,3000.0f)*camera.viewMatrix());
     for(const auto& chunk:m_chunks)
-        if(frustum.intersectsSphere(chunk.center,chunk.radius) && glm::length(glm::vec2(chunk.center.x-camera.position().x,chunk.center.z-camera.position().z))<2100)
-            chunk.mesh->draw();
+        if(frustum.intersectsSphere(chunk.center,chunk.radius))
+            (chunk.mesh?chunk.mesh:chunk.coarse)->draw();
 }
 void IslandRenderer::drawWater(const Camera& camera,float aspect,const Lighting& lighting,float time,float waveStrength)
 {

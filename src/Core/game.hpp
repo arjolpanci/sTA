@@ -40,6 +40,7 @@ private:
     bool init();
     void update(float dt);
     void render();
+    void streamActors();
     void renderHUD();
     void startCourierRun();
     void stopCourierRun();
@@ -66,11 +67,13 @@ private:
     World m_world;
 
     std::vector<std::unique_ptr<Actor>> m_actors; // owns every actor
+    std::vector<Actor*> m_streamedVehicles, m_streamedPedestrians;
+    std::vector<std::shared_ptr<const ModelAsset>> m_actorAssets; // shared catalog, never duplicated per placement
     Player* m_player = nullptr;                   // non-owning, points into m_actors
     std::vector<Vehicle*> m_vehicles;             // non-owning, point into m_actors
     Actor* m_controlled = nullptr;                // whichever actor currently receives input
 
-    std::vector<glm::vec3> m_deliveryStops{{60, 8, 24}, {390, 26, 24}, {0, 32, -330}, {-610, 8, 24}, {0, 8, 132}};
+    std::vector<glm::vec3> m_deliveryStops;
     float m_worldTime = 0;
     float m_waveStrength = 1.0f;
     float m_waterRecoveryNotice = 0;
