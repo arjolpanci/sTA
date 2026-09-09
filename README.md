@@ -73,14 +73,15 @@ locally and whose licence is unknown - it is recorded as such in the manifest, a
 car marque is a trademark question separate from any asset licence. See
 [sources, licenses and hashes](resources/models/README.md).
 Cars keep their source proportions, with collision bounds derived from their model size.
-Trees retain solid trunk colliders and are baked into the existing scenery batches.
+Trees retain solid trunk colliders; repeated trees and street props use shared GPU
+meshes and instanced draws.
 The terrain, road layout and actor routes are unchanged by the asset replacement.
 
-The loader uses cgltf 1.15 (MIT), CPU skeletal skinning, quaternion interpolation and
+The loader uses cgltf 1.15 (MIT), GPU skeletal skinning, quaternion interpolation and
 short animation crossfades. It supports the selected assets' linear/step animation,
-skins, node transforms, vertex colors and solid-color texture palettes. It is not a
-full glTF/PBR renderer: morph targets, cubic-spline animation and general textured
-materials need additional support. All original clips remain in the character files,
+skins, node transforms, vertex colors, palette colors, material textures, alpha cutouts
+and normal maps. It is not a full glTF/PBR renderer: morph targets and cubic-spline
+animation need additional support. All original clips remain in the character files,
 but gameplay currently uses locomotion clips; bespoke jump, swim and vehicle-entry
 animations and rotating wheels are not implemented.
 
@@ -118,6 +119,30 @@ Open the folder in Visual Studio with CMake integration and build the x64-Debug 
 Debug builds open the debug UI automatically with simulation paused and the cursor free. Release and other build configurations start in free roam with the UI hidden. F1, the close button or **Resume game** returns to play.
 
 The debug window has a sidebar with Overview, Missions, Player, Camera, Island, Rendering and Vehicle pages. Use Tab / arrows and Enter for keyboard navigation. Tools include movement/camera resets, safe on-foot quick travel, an aerial island view, wave strength, time of day and cloud settings, inspection and tuning of any vehicle, spawning a Porsche ahead of the player, HUD visibility, shadow controls, and collision volumes. Starting a courier run resets its progress; stopping it removes the mission HUD and markers while retaining earnings in the Missions page until the next run.
+
+## Performance
+
+Character meshes and material textures are loaded once and reused. Skinning runs in
+vertex shaders; only bone palettes change during play. Materials sharing a skeleton
+also share its palette, including between the color and shadow passes. GPU poses are
+checked against a CPU reference in the model tests.
+
+Camera-frustum and light-frustum tests cull actors, scenery and terrain chunks before
+drawing. Off-screen characters that cannot cast visible shadows skip pose evaluation.
+Animation detail follows distance: full rate within 25 metres, 30 Hz beyond that, and
+10 Hz beyond 75 metres. Physics and root movement remain at 60 Hz. Geometry LOD is not
+yet implemented; repeated scenery is instanced and distance-culled.
+
+The debug Overview retains timings for the last 120 gameplay frames, including the
+95th percentile. Its current/menu FPS is separate, so pausing does not hide a slow
+active frame. Render/present time includes VSync waits during ordinary play.
+
+Run `./sTA --benchmark` from a build directory for an uncapped comparison of paused
+and active downtown rendering. It warms each phase, measures 120 frames, waits for GPU
+completion and reports the renderer, resolution, median/p95 frame time, simulation,
+render submission/presentation, GPU wait, pose updates, culled model passes and palette
+upload size. These measurements describe this camera/scene; they are not a guarantee
+for every view. Use a Release build for representative gameplay performance.
 
 ## Verification
 

@@ -123,7 +123,15 @@ bool Game::init()
     m_debugUIReady = true;
 
     m_debugUI.addPanel("Overview", [this]() {
-        ImGui::Text("FPS: %.0f (%.2f ms/frame)", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
+        ImGui::Text("Current/menu FPS: %.0f", ImGui::GetIO().Framerate);
+        const auto performance=m_performance.summary();
+        if(performance.count) {
+            ImGui::Text("Last gameplay: %.0f FPS | %.2f ms average | %.2f ms p95",
+                1000.0/performance.mean.frameMs,performance.mean.frameMs,performance.p95Ms);
+            ImGui::Text("Simulation: %.2f ms | Render/present: %.2f ms",
+                performance.mean.updateMs,performance.mean.renderMs);
+            ImGui::TextDisabled("Last %zu gameplay frames; retained while paused. Present includes VSync waits.",performance.count);
+        } else ImGui::TextDisabled("Resume play to collect gameplay timings.");
         if (Vehicle* driving = drivenVehicle())
             ImGui::Text("Driving (speed %.1f)", driving->speed());
         else
@@ -323,6 +331,8 @@ int Game::run(bool smokeTest, bool benchmark)
     if (benchmark)
     {
         glfwSwapInterval(0);
+        int width,height;glfwGetFramebufferSize(m_window,&width,&height);
+        std::cout<<"BENCH renderer="<<glGetString(GL_RENDERER)<<" resolution="<<width<<"x"<<height<<'\n';
         using Clock=std::chrono::steady_clock;
         auto ms=[](auto a,auto b){return std::chrono::duration<double,std::milli>(b-a).count();};
         m_debugUI.setVisible(false);
@@ -515,12 +525,15 @@ int Game::run(bool smokeTest, bool benchmark)
             m_camera.processScroll(m_input.scrollDY());
         }
 
+        const bool playing=!m_debugUI.visible();
+        const double updateStarted=glfwGetTime();
         while (accumulator >= SIM_DT)
         {
             update(static_cast<float>(SIM_DT));
             accumulator -= SIM_DT;
         }
 
+        const double updateFinished=glfwGetTime();
         Vehicle* driving = drivenVehicle();
         glm::vec3 followTarget = driving
             ? driving->position() + glm::vec3(0.0f, 1.2f, 0.0f)
@@ -529,7 +542,11 @@ int Game::run(bool smokeTest, bool benchmark)
         m_camera.avoidObstacles([this](const glm::vec3& point) {
             return point.y < m_world.terrain().seaLevel() + 0.2f || m_world.collides(CollisionBox::fromCenterHalf(point, glm::vec3(0.2f)));
         });
+        const double renderStarted=glfwGetTime();
         render();
+        const double finished=glfwGetTime();
+        m_performance.record(playing,{(finished-now)*1000,
+            (updateFinished-updateStarted)*1000,(finished-renderStarted)*1000});
         m_input.endFrame();
     }
     return 0;

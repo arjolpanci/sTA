@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "Core/input.hpp"
+#include "Core/performance_history.hpp"
 #include "Core/debug_ui.hpp"
 #include "Rendering/camera.hpp"
 #include "Rendering/sky.hpp"
@@ -59,6 +60,7 @@ private:
     bool m_smokeTest = false;
     GLFWwindow* m_window = nullptr;
     Input m_input;
+    PerformanceHistory m_performance;
     DebugUI m_debugUI;
     Camera m_camera;
     World m_world;

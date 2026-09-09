@@ -1,6 +1,7 @@
 #include "Rendering/model_asset.hpp"
 #include "Game/animation_state.hpp"
 #include "Rendering/frustum.hpp"
+#include "Core/performance_history.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 #include <filesystem>
 #include <iostream>
@@ -19,6 +20,11 @@ void check(const std::vector<float>& vertices) {
     }
 }
 int main() {
+    PerformanceHistory performance;
+    performance.record(true,{50,2,47});performance.record(false,{1,0,1});
+    require(performance.summary().count==1 && performance.summary().mean.frameMs==50,"Paused frames must not overwrite gameplay timing");
+    for(int i=0;i<120;++i)performance.record(true,{10,1,8});
+    require(performance.summary().count==120 && performance.summary().p95Ms==10,"Performance window failed to roll over");
     Frustum camera(glm::perspective(glm::radians(60.0f),1.0f,.1f,100.0f));
     require(camera.intersectsSphere({0,0,-10},1),"Visible sphere was culled");
     require(!camera.intersectsSphere({0,0,10},1),"Sphere behind camera was not culled");
