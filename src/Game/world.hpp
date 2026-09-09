@@ -2,6 +2,7 @@
 #define WORLD_H
 
 #include <optional>
+#include <string>
 #include <vector>
 #include <unordered_map>
 #include <cstdint>
@@ -37,6 +38,8 @@ struct Ramp
 
 struct TreeSpawn { glm::vec3 feet; float height, yaw; int model; };
 
+struct Landmark { std::string kind, name; glm::vec3 position; };
+
 struct Road { float width; std::vector<glm::vec3> route; };
 // Painted road marking: a rectangle on the ground plan, laid over whatever
 // shape the terrain turned out to be rather than standing on it as a slab.
@@ -52,6 +55,7 @@ class World
 {
 public:
     World();
+    const std::vector<Landmark>& landmarks() const { return m_landmarks; }
     const std::vector<TreeSpawn>& trees() const { return m_trees; }
     const std::vector<Road>& roads() const { return m_roads; }
     const std::vector<PropSpawn>& props() const { return m_props; }
@@ -82,6 +86,7 @@ private:
     std::vector<size_t> candidates(float x, float z, float radius = 0) const;
     static int64_t cellKey(int x, int z);
     Terrain m_terrain;
+    std::vector<Landmark> m_landmarks;
     std::vector<Road> m_roads;
     std::vector<TreeSpawn> m_trees;
     std::vector<PropSpawn> m_props;

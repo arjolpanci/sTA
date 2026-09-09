@@ -37,7 +37,7 @@ int main() {
         check(glm::dot(glm::cross(b-a, c-a), normal) > 0, "every ramp triangle winds outward");
     }
     World world;
-    check(world.groundSize().x == 2048, "expanded city bounds");
+    check(world.groundSize().x == 6144, "expanded city bounds");
     check(!world.collides(CollisionBox::fromCenterHalf({0, 8.9f, 0}, {0.3f, 0.9f, 0.3f})), "player spawn clear");
     check(close(world.groundHeightAt(21, -30, 8.45f), 8.16f), "inaccessible roofs are excluded");
     for (const Ramp& ramp : world.ramps()) {

@@ -28,7 +28,7 @@ World::World()
 {
     std::ifstream file("resources/maps/island.scene");
     std::string magic; int version;
-    if (!(file >> magic >> version) || magic != "STA_SCENE" || (version != 1 && version != 2))
+    if (!(file >> magic >> version) || magic != "STA_SCENE" || (version < 1 || version > 3))
         throw std::runtime_error("Missing or unsupported baked island scene");
     std::string line;
     std::getline(file, line);
@@ -40,7 +40,7 @@ World::World()
         auto vec = [&row]() { glm::vec3 v; row >> v.x >> v.y >> v.z; return v; };
         auto route = [&row, &vec]() {
             int count = 0; row >> count;
-            if (count < 1 || count > 256) throw std::runtime_error("Invalid baked actor route");
+            if (count < 1 || count > 4096) throw std::runtime_error("Invalid baked actor route");
             std::vector<glm::vec3> result;
             for (int i=0; i<count; ++i) result.push_back(vec());
             return result;
@@ -88,6 +88,25 @@ World::World()
         {
             Road road; row >> road.width; road.route=route(); m_roads.push_back(road);
         }
+        else if (type == 'U')
+        {
+            PropSpawn prop; prop.feet=vec(); row >> prop.yaw >> prop.height >> prop.model;
+            if(prop.model<0 || prop.model>=int(PropModels.size()) || prop.height<=0)
+                throw std::runtime_error("Invalid baked prop");
+            m_props.push_back(prop);
+            const auto& model=PropModels[prop.model];
+            if(model.solid) {
+                StaticBox box{prop.feet+glm::vec3(0,prop.height*.5f,0),{model.radius*2,prop.height,model.radius*2},{.4f,.4f,.4f},false,prop.yaw,true};
+                m_boxes.push_back(box);
+                m_colliders.push_back(CollisionBox::fromCenterHalf(box.center,box.size*.5f,box.yaw));
+            }
+        }
+        else if (type == 'A')
+        {
+            Landmark place; row >> place.kind; place.position=vec(); row >> place.name;
+            std::replace(place.name.begin(),place.name.end(),'_',' ');
+            m_landmarks.push_back(place);
+        }
         else if (type == 'V')
         {
             VehicleSpawn spawn; row >> spawn.type >> spawn.yaw >> spawn.speed;
@@ -113,7 +132,7 @@ World::World()
             for (int x=int(std::floor((box.center.x-r)/64)); x<=int(std::floor((box.center.x+r)/64)); ++x)
                 m_cells[cellKey(x,z)].push_back(i);
     }
-    placeProps();
+    if(version<3) placeProps();
 }
 
 namespace {

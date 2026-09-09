@@ -1,29 +1,179 @@
 {
-  "version": 1,
+  "version": 3,
   "seed": 731942,
-  "grid": 513,
-  "spacing_metres": 4.0,
-  "extent_metres": 2048.0,
+  "grid": 1025,
+  "spacing_metres": 6.0,
+  "extent_metres": 6144.0,
   "sea_level": 0.0,
   "height_range": [
     -38.0,
-    175.21713562856306
+    314.1925352093519
   ],
-  "road_mask_grid": 2049,
-  "buildings": 122,
-  "scene_records": 6063,
-  "vehicles": 30,
-  "pedestrians": 34,
-  "road_segments": 459,
-  "districts": [
-    "Downtown",
-    "East gardens",
-    "Highland",
-    "West harbor"
+  "road_mask_grid": 4097,
+  "buildings": 557,
+  "scene_records": 29842,
+  "vehicles": 80,
+  "pedestrians": 101,
+  "road_segments": 2027,
+  "name": "Twin Palms",
+  "landmarks": [
+    {
+      "name": "Bayfront",
+      "kind": "spawn",
+      "position": [
+        0,
+        8,
+        0
+      ]
+    },
+    {
+      "name": "Art Deco quarter",
+      "kind": "district",
+      "position": [
+        630,
+        10,
+        90
+      ]
+    },
+    {
+      "name": "Palm residential",
+      "kind": "district",
+      "position": [
+        780,
+        12,
+        -660
+      ]
+    },
+    {
+      "name": "Marina village",
+      "kind": "district",
+      "position": [
+        360,
+        10,
+        1020
+      ]
+    },
+    {
+      "name": "Garden suburb",
+      "kind": "district",
+      "position": [
+        -1800,
+        12,
+        840
+      ]
+    },
+    {
+      "name": "Ocean Drive",
+      "kind": "road",
+      "position": [
+        1490,
+        10,
+        600
+      ]
+    },
+    {
+      "name": "Sunrise Beach",
+      "kind": "beach",
+      "position": [
+        1590,
+        3,
+        250
+      ]
+    },
+    {
+      "name": "South Beach",
+      "kind": "beach",
+      "position": [
+        1000,
+        3,
+        1570
+      ]
+    },
+    {
+      "name": "Bay Causeway",
+      "kind": "bridge",
+      "position": [
+        -450,
+        18,
+        -180
+      ]
+    },
+    {
+      "name": "Sierra Lookout",
+      "kind": "lookout",
+      "position": [
+        -1670,
+        278,
+        -1240
+      ]
+    },
+    {
+      "name": "Pine Ridge Trail",
+      "kind": "trail",
+      "position": [
+        -1500,
+        242,
+        -1520
+      ]
+    },
+    {
+      "name": "Sierra Forest",
+      "kind": "forest",
+      "position": [
+        -2050,
+        170,
+        -1050
+      ]
+    },
+    {
+      "name": "Mercy Hospital",
+      "kind": "hospital",
+      "position": [
+        -1120,
+        10.16,
+        238
+      ]
+    },
+    {
+      "name": "Bay Police",
+      "kind": "police",
+      "position": [
+        -1760,
+        10.16,
+        208
+      ]
+    },
+    {
+      "name": "Palms Park",
+      "kind": "park",
+      "position": [
+        1050,
+        11,
+        -250
+      ]
+    },
+    {
+      "name": "Cypress Park",
+      "kind": "park",
+      "position": [
+        -1940,
+        11,
+        330
+      ]
+    },
+    {
+      "name": "Lagoon Park",
+      "kind": "park",
+      "position": [
+        420,
+        10,
+        600
+      ]
+    }
   ],
   "sha256": {
-    "island.bin": "6344984e68f5ab2e03e65ae0d79a5cab1d99de776617316c7079824e7f139b6d",
-    "island.scene": "a450f659e909b10cde4931fe33547c63aac0c856b03ad01a783510544018c315",
-    "island-overview.png": "f91eeb55b3514fda6a0f8baa081f1b0f42a81a0866330367c04f0670d902ca49"
+    "island.bin": "16f2ad3f8aee12a290b02772b7887906bd9572b1869dbfa2ec0b2280fa04f457",
+    "island.scene": "63f9e8027348fc73b64155a3e8d4c2a2899a2a0bde9ca87e782ba6b6e40ca8b8",
+    "island-overview.png": "1fbe0a4bd1f68408574bd795955add28668c7d1f0a8aaf6e10a2e70711952f89"
   }
 }

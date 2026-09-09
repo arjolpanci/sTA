@@ -25,11 +25,13 @@ void main() {
     vec3 grass=vec3(.22,.34,.17)+variation*vec3(.5,.6,.3);
     vec3 sand=vec3(.67,.60,.41)+variation*.4;
     vec3 rock=vec3(.39,.41,.38)+variation*.7;
-    float stone=max(smoothstep(.18,.55,1.0-n.y),smoothstep(90,165,vFragPos.y));
+    float stone=max(smoothstep(.18,.55,1.0-n.y),smoothstep(270,420,vFragPos.y)*.4);
     vec3 base=mix(grass,rock,stone);
     base=mix(sand,base,smoothstep(seaLevel+1.2,seaLevel+5.0,vFragPos.y));
     vec3 asphalt=vec3(.085,.095,.10)+noise(vFragPos.xz*3.0)*.025;
-    base=mix(base,asphalt,smoothstep(.35,.62,road));
+    vec3 trail=vec3(.36,.28,.17)+variation*.3;
+    base=mix(base,trail,smoothstep(.2,.48,road));
+    base=mix(base,asphalt,smoothstep(.63,.85,road));
     float shadow=0;
     // Same normal-offset lookup as the lit pass, so terrain and the objects
     // standing on it agree about where a shadow starts.

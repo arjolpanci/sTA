@@ -60,19 +60,33 @@ glm::vec3 Terrain::normalAt(float x, float z) const
     float d = m_spacing * .5f;
     return glm::normalize(glm::vec3(heightAt(x-d,z)-heightAt(x+d,z), 2*d, heightAt(x,z-d)-heightAt(x,z+d)));
 }
-std::vector<float> Terrain::vertices(int x0, int z0, int cells) const
+std::vector<float> Terrain::vertices(int x0, int z0, int cells, int stride, bool skirts) const
 {
     std::vector<float> result;
-    result.reserve(size_t(cells)*cells*6*8);
-    auto vertex = [&](int x, int z) {
+    if(stride<1 || cells<1 || x0<0 || z0<0 || x0+cells>=m_resolution || z0+cells>=m_resolution)
+        throw std::invalid_argument("Invalid terrain tile");
+    result.reserve(size_t((cells+stride-1)/stride)*((cells+stride-1)/stride)*6*8);
+    auto vertex = [&](int x, int z, float drop=0) {
         float wx=x*m_spacing-extent()*.5f, wz=z*m_spacing-extent()*.5f;
         glm::vec3 n=normalAt(wx,wz);
-        result.insert(result.end(), {wx,m_heights[z*m_resolution+x],wz,n.x,n.y,n.z,float(x)/(m_resolution-1),float(z)/(m_resolution-1)});
+        result.insert(result.end(), {wx,m_heights[z*m_resolution+x]-drop,wz,n.x,n.y,n.z,float(x)/(m_resolution-1),float(z)/(m_resolution-1)});
     };
-    for (int z=z0; z<std::min(z0+cells,m_resolution-1); ++z)
-        for (int x=x0; x<std::min(x0+cells,m_resolution-1); ++x) {
-            vertex(x,z); vertex(x,z+1); vertex(x+1,z);
-            vertex(x+1,z); vertex(x,z+1); vertex(x+1,z+1);
+    for (int z=z0; z<std::min(z0+cells,m_resolution-1); z+=stride)
+        for (int x=x0; x<std::min(x0+cells,m_resolution-1); x+=stride) {
+            int xx=std::min(x+stride,x0+cells),zz=std::min(z+stride,z0+cells);
+            vertex(x,z); vertex(x,zz); vertex(xx,z);
+            vertex(xx,z); vertex(x,zz); vertex(xx,zz);
         }
+    if(skirts) {
+        auto edge=[&](int ax,int az,int bx,int bz) {
+            vertex(ax,az);vertex(bx,bz);vertex(ax,az,40);
+            vertex(bx,bz);vertex(bx,bz,40);vertex(ax,az,40);
+        };
+        for(int i=0;i<cells;i+=stride) {
+            int j=std::min(cells,i+stride);
+            edge(x0+i,z0,x0+j,z0);edge(x0+j,z0+cells,x0+i,z0+cells);
+            edge(x0,z0+j,x0,z0+i);edge(x0+cells,z0+i,x0+cells,z0+j);
+        }
+    }
     return result;
 }

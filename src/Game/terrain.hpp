@@ -21,7 +21,7 @@ public:
     const std::vector<unsigned char>& roadMask() const { return m_roadMask; }
     int roadMaskResolution() const { return m_roadMaskResolution; }
     // Triangles and collision use the same diagonal and interpolation.
-    std::vector<float> vertices(int x0, int z0, int cells) const;
+    std::vector<float> vertices(int x0, int z0, int cells, int stride = 1, bool skirts = false) const;
 private:
     int m_resolution = 0;
     float m_spacing = 0, m_seaLevel = 0;
